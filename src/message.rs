@@ -1,6 +1,5 @@
 use funpay_client::FunPaySender;
 use funpay_client::models::Message;
-use crate::message;
 use crate::models::{
     FPMe,
     strategy::Strategies

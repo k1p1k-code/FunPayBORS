@@ -1,7 +1,5 @@
-use funpay_client::{events, Event};
 use serde::{Serialize, Deserialize};
 use std::path::{Path, PathBuf};
-use std::task::Context;
 use std::fs;
 
 
@@ -62,7 +60,7 @@ impl Strategies {
         Ok(config)
     }
     fn reload(){
-
+        
     }
 
 }
