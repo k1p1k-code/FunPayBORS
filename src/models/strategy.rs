@@ -47,18 +47,20 @@ pub struct Strategies{
     pub strategies: Vec<Strategy>,
 }
 impl Strategies {
-    pub fn new(path_config: Option<&str>) -> Self {
-        let path=match path_config {
-            Some(path) => Path::new(path),
-            None => Path::new("./config.json"),
+    pub fn new(path_config: Option<String>) -> Result<Self, Box<dyn std::error::Error>> {
+        let path = match path_config {
+            Some(path) => Path::new(&path).to_path_buf(),
+            None => PathBuf::from("./config.json"),
         };
-        let file=fs::read_to_string(&path);
-        let text=file.unwrap();
-        let config: Strategies = serde_json::from_str(&text).unwrap();
-        config
+        if !path.exists() {
+            return Err(format!("File config no find {}", path.display()).into());
+        }
+        let text = fs::read_to_string(&path)?;
 
+        let config: Strategies = serde_json::from_str(&text)?;
+
+        Ok(config)
     }
-
     fn reload(){
 
     }
