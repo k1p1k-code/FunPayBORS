@@ -1,0 +1,18 @@
+{
+  "strategies": [
+    {
+      "strategy_text": {
+        "key_word": ["привет", "здравствуй"],
+        "equals": null
+      },
+      "answer": "Привет! Как дела?"
+    },
+    {
+      "strategy_text": {
+        "key_word": null,
+        "equals": "Как тебя зовут?"
+      },
+      "answer": "Меня зовут Бот."
+    }
+  ]
+}
