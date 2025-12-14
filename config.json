@@ -1,18 +1,34 @@
 {
-  "strategies": [
+  "message": [
     {
       "strategy_text": {
-        "key_word": ["привет", "здравствуй"],
+        "key_word": [
+          "привет",
+          "здравствуйте"
+        ],
         "equals": null
       },
-      "answer": "Привет! Как дела?"
+      "answer": "Здравствуйте! Чем могу помочь?"
     },
     {
       "strategy_text": {
-        "key_word": null,
-        "equals": "Как тебя зовут?"
+        "key_word": [
+          "пока",
+          "до свидания"
+        ],
+        "equals": null
       },
-      "answer": "Меня зовут Бот."
+      "answer": "До свидания! Хорошего дня!"
+    }
+  ],
+  "order": [
+    {
+      "unique_prefix": "Пустышка",
+      "static_data": "Спасибо за покупку",
+      "availability_data": [
+        "dsa-11",
+        "11-das"
+      ]
     }
   ]
 }

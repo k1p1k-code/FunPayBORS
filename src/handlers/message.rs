@@ -9,10 +9,10 @@ use crate::models::{
 pub async fn message_handler(message: Message, sender: &FunPaySender, me: &FPMe, strategies: &Strategies) {
     if me.id == message.author_id{return;}
     let text = match &message.text {
-        Some(t) => t,
+        Some(text) => text,
         None => return,
     };
-    for i in strategies.strategies.iter() {
+    for i in strategies.message.iter() {
         if i.strategy_text.check(text){sender.send_chat_message(&message.chat_id, &i.answer).await.unwrap();}
     }
 

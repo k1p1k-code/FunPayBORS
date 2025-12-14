@@ -1,5 +1,4 @@
 use std::process::exit;
-use crate::models::strategy::Strategy;
 
 pub struct ArgsOption{
     pub golden_key: Option<String>,
