@@ -1,7 +1,7 @@
 mod handlers;
 mod models;
 mod args;
-mod plugins;
+
 
 use funpay_client::events::Event;
 use funpay_client::{FunPayAccount, FunPayError};
