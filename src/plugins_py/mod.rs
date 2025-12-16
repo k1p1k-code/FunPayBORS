@@ -3,6 +3,7 @@ pub mod utils;
 use std::ffi::CString;
 use pyo3::prelude::*;
 use std::fs;
+use std::io::Error;
 use std::path::PathBuf;
 use pyo3::types::{PyDict, PyList};
 
@@ -71,17 +72,17 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
     })
 }
 
-pub fn loader_plugins() -> Vec<Plugin> {
+pub fn loader_plugins() -> Result<Vec<Plugin>, String> {
     let current_dir = std::env::current_dir().unwrap();
     let path_plugins = current_dir.join("plugins");
     let path_venv=path_plugins.join("venv");
     unsafe { std::env::set_var("VIRTUAL_ENV", &path_venv); }
-
+    let mut plugins = Vec::new();
     if !path_plugins.exists() {
-        panic!("Directory 'plugins' not found in {:?}", current_dir);
+        Err("\"Plugins\" directory does not exist.".to_string())?
     }
 
-    let mut plugins = Vec::new();
+
 
     let entries = fs::read_dir(&path_plugins)
         .expect("Failed to read plugins directory");
@@ -94,12 +95,12 @@ pub fn loader_plugins() -> Vec<Plugin> {
             println!("\n== Load plugin: {} ==", plugin_name);
             let path_plugin = entry.path().join("plugin.py");
             if !path_plugin.exists() {
-                panic!("Plugin file not found at {:?}", path_plugin);
+                Err(format!("Plugin file not exist {:?}", path_plugin))?
             }
             let plugin = extruct_plugin(InfoPlugin {path_plugin: entry.path().join("plugin.py"), name: plugin_name});
             plugins.push(plugin);
         }
     }
 
-    plugins
+    Ok(plugins)
 }

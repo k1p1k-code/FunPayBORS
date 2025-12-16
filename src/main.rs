@@ -8,11 +8,17 @@ use funpay_client::events::Event;
 use funpay_client::{FunPayAccount, FunPayError};
 use models::strategy::Strategies;
 use args::ArgsOption;
-
+use crate::plugins_py::Plugin;
 
 #[tokio::main]
 async fn main() -> Result<(), FunPayError> {
-    let plugins_python=plugins_py::loader_plugins();
+    let plugins_python: Vec<Plugin>= match plugins_py::loader_plugins() {
+        Ok(p) => p,
+        Err(m) => {
+            println!("!! {} !!", m);
+            vec![]
+        },
+    };
 
     let args_option = ArgsOption::new();
     let golden_key = args_option.golden_key.unwrap_or_else(|| std::env::var("GOLDEN_KEY").expect("Golden key not found in env and args"));
