@@ -9,7 +9,7 @@ __Скрипт автоматизация продаж на бирже FunPuy__
 - [Помощь](#Помощь)
 - Плагины
 - - [Установка](https://github.com/k1p1k-code/FunPayBORS/blob/master/USE_PLUGINS.md)
-
+- - [Создание](https://github.com/k1p1k-code/FunPayBORS/blob/master/CREATE_PLUGINS.md)
 
 ## Возможности
 - Готовые ответы на сообщение по ключевым словам или точных фраз
