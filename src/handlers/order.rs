@@ -3,7 +3,7 @@ use funpay_client::models::{OrderShortcut};
 use crate::models::FPMe;
 use crate::models::strategy::Strategies;
 
-pub async fn order_handler(order: OrderShortcut, sender: &FunPaySender, me: &FPMe, strategies: &Strategies) {
+pub async fn order_handler(order: OrderShortcut, sender: &FunPaySender, _me: &FPMe, strategies: &Strategies) {
     for i in &strategies.order{
         if  order.description.starts_with(i.unique_prefix.as_str()){
             if let Some(static_data) = &i.static_data {
