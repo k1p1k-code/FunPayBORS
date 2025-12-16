@@ -38,5 +38,5 @@ __Скрипт автоматизация продаж на бирже FunPuy__
 
 ## Помощь
 - Вы можете обратится в [issues](https://github.com/k1p1k-code/FunPayBORS/issues)
-- Или перейти в [Telegrem чат](https://t.me/FunPayBors) где я рад помочь
+- Или перейти в [Telegram чат](https://t.me/FunPayBors) где я рад помочь
 
