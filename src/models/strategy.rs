@@ -1,10 +1,7 @@
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use serde::{Serialize, Deserialize};
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::sync::Mutex;
 use parking_lot::RwLock;
-use pyo3::PyResult;
-use pyo3::types::PyDict;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StrategyText{

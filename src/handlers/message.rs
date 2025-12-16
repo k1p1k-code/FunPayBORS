@@ -23,7 +23,6 @@ pub async fn message_handler(message: Message, sender: &FunPaySender, me: &FPMe,
             message_for_plugins.clone(),
             me_for_plugins.clone()
             );
-        let me=me_for_plugins.clone().to_owned();
         let con=match run_hook(&i.message_hook, args_py).await {
             Ok(b) => b,
             Err(e) => {println!("Plugin \"{}\" message hook returned error, about message_handler!\nError: {:?}", i.name, e); return;},

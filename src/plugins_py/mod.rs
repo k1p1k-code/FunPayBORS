@@ -3,9 +3,8 @@ pub mod utils;
 use std::ffi::CString;
 use pyo3::prelude::*;
 use std::fs;
-use std::io::Error;
 use std::path::PathBuf;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::PyDict;
 
 
 pub struct Plugin {
@@ -86,7 +85,7 @@ pub fn loader_plugins() -> Result<Vec<Plugin>, String> {
 
     let entries = fs::read_dir(&path_plugins)
         .expect("Failed to read plugins directory");
-
+    
     for entry in entries {
         let entry = entry.expect("Failed to read directory entry");
         if entry.path().is_dir() && entry.file_name() != "venv" {
