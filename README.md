@@ -17,6 +17,8 @@ __Скрипт автоматизация продаж на бирже FunPuy__
 - Написание плагинов на языке программирование python (в разработке)
 - Простое изменение шаблонов
 
+[Версия с плагинами](https://github.com/k1p1k-code/FunPayBORS/releases/tag/0.0.3BETA)
+
 ## Запуск
 1. Скачайте [releases](https://github.com/k1p1k-code/FunPayBORS/releases) послеюнию версию
 2. Установите [Python](https://python.org)
