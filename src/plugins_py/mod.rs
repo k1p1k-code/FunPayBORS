@@ -11,7 +11,7 @@ pub struct Plugin {
     #[warn(unused_variables)]
     pub name: String,
     pub message_hook: Py<PyAny>,
-    pub order_hook: Py<PyAny>,
+    // pub order_hook: Py<PyAny>,
 }
 
 
@@ -54,9 +54,9 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
             .expect("No \"message_hook\" method in Plugin found")
             .into();
 
-        let order_hook = plugin_instance.getattr("order_hook")
-            .expect("No \"order_hook\" method in Plugin found")
-            .into();
+        // let order_hook = plugin_instance.getattr("order_hook")
+        //     .expect("No \"order_hook\" method in Plugin found")
+        //     .into();
 
         let load = plugin_instance.getattr("load")
             .expect("No \"load\" method in Plugin found");
@@ -66,7 +66,7 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
         Plugin {
             name: info_plugin.name,
             message_hook,
-            order_hook,
+            // order_hook,
         }
     })
 }
