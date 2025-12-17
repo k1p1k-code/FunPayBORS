@@ -5,7 +5,7 @@ class Plugin():
     from base import  message
     @staticmethod
     def load() -> None:
-        print("Hi plugin super, load!")
+        print("Hi plugin async_chats_tg, load!")
 
     @staticmethod
     @message
