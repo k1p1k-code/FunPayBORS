@@ -17,16 +17,14 @@ use args::ArgsOption;
 use crate::plugins_py::Plugin;
 use crate::models::{AppState, State};
 
-fn reload_plugin(){
-    println!("Reloading plugin...");
-}
 
 #[tokio::main]
 async fn main() -> Result<(), FunPayError> {
     let args_option = ArgsOption::new();
     if !args_option.reload.is_none(){
-        let mut stream = TcpStream::connect("127.0.0.1:58899").await.expect("Failed to connect to the server, mb run aplication");
+        let mut stream = TcpStream::connect("127.0.0.1:58899").await.expect("Failed to connect to the server, mb run application with --server");
         stream.write_all(b"reload").await.expect("Failed to write to server");
+        println!("Wait for any FunPay event to reload plugins");
         std::process::exit(0);
     }
 
@@ -48,13 +46,12 @@ async fn main() -> Result<(), FunPayError> {
     };
     let strategies = Strategies::new(args_option.path_config).expect("Error");
     let mut rx = account.subscribe();
-    let listener_sock = TcpListener::bind("127.0.0.1:58899").await?;
     let app_state = Arc::new(Mutex::new(AppState { app_state: State::DEFAULT }));
-    let socket_handler=sock::get_socket_handler(listener_sock, app_state.clone()).await;
 
+    let event_handler_app_state=app_state.clone();
     let event_handler = tokio::spawn(async move {
         while let Ok(event) = rx.recv().await {
-            let state=app_state.clone();
+            let state=event_handler_app_state.clone();
             let mut state=state.lock().await;
             match state.app_state {
                 State::RELOAD => {
@@ -83,20 +80,39 @@ async fn main() -> Result<(), FunPayError> {
         }
     });
 
-    // Ждем завершения всех задач
-    tokio::select! {
-        _ = socket_handler => {
-            println!("Socket server stopped");
+    if args_option.server.is_some() {
+        let listener_sock = TcpListener::bind("127.0.0.1:58899").await?;
+        let socket_handler = sock::get_socket_handler(listener_sock, app_state.clone()).await;
+        tokio::select! {
+            _ = socket_handler => {
+                println!("Socket server stopped");
+            }
+            _ = event_handler => {
+                println!("FunPay event handler stopped");
+            }
+            result = account.start_polling_loop() => {
+                if let Err(e) = result {
+                    eprintln!("Polling loop error: {}", e);
+                }
+            }
+            else => {
+                println!("All tasks completed");
+            }
         }
-        _ = event_handler => {
-            println!("Event handler stopped");
-        }
-        result = account.start_polling_loop() => {
-            if let Err(e) = result {
-                eprintln!("Polling loop error: {}", e);
+    } else {
+        tokio::select! {
+            _ = event_handler => {
+                println!("FunPay event handler stopped");
+            }
+            result = account.start_polling_loop() => {
+                if let Err(e) = result {
+                    eprintln!("Polling loop error: {}", e);
+                }
+            }
+            else => {
+                println!("All tasks completed");
             }
         }
     }
-
     Ok(())
 }
