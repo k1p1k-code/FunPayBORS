@@ -42,3 +42,7 @@ __Скрипт автоматизация продаж на бирже FunPuy__
 - Вы можете обратится в [issues](https://github.com/k1p1k-code/FunPayBORS/issues)
 - Или перейти в [Telegram чат](https://t.me/FunPayBors) где я рад помочь
 
+## Понравилось приложени
+Поставь звездочку
+<img width="1234" height="44" alt="image" src="https://github.com/user-attachments/assets/befbc058-5d4d-492e-845d-360bc036c3c4" />
+
