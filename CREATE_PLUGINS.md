@@ -38,7 +38,7 @@ me: str - golden_key: str, id: int
 class Plugin():
     @staticmethod
     def load() -> None:
-        print("Hi plugin super, load!")
+        print("Hi plugin async_chats_tg, load!")
 
     @staticmethod
     async def message_hook(*args) -> bool:
@@ -56,7 +56,7 @@ class Plugin():
     from base import message
     @staticmethod
     def load() -> None:
-        print("Hi plugin super, load!")
+        print("Hi plugin async_chats_tg, load!")
 
     @staticmethod
     @message
@@ -76,7 +76,7 @@ class Plugin():
     from base import  message
     @staticmethod
     def load() -> None:
-        print("Hi plugin super, load!")
+        print("Hi plugin async_chats_tg, load!")
 
     @staticmethod
     @message
@@ -86,5 +86,10 @@ class Plugin():
         print(sys.path)
         return True
 ```
+
+В load с помощью библиотеке pip необходимо установить все зависимости
+
+Для продвинутых знаний вы можете создавать venv в своей директории 
+важно то что это потребляет больше ресурсов если у вас легкая библиотека делать это не стоит
 
 *Теперь вы можете создавать плагины на python для бота на funpay написаном на Rust*
