@@ -78,10 +78,12 @@ pub fn loader_plugins() -> Result<Vec<Plugin>, String> {
     unsafe { std::env::set_var("VIRTUAL_ENV", &path_venv); }
     let mut plugins = Vec::new();
     if !path_plugins.exists() {
-        Err("\"Plugins\" directory does not exist.".to_string())?
+        Err("\"/plugins\" directory does not exist.".to_string())?
     }
 
-
+    if !path_venv.exists(){
+        Err("Warning: \"/plugins/venv\" directory does not exist, use global interpreter.")?
+    }
 
     let entries = fs::read_dir(&path_plugins)
         .expect("Failed to read plugins directory");

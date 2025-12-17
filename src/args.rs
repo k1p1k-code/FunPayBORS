@@ -3,12 +3,14 @@ use std::process::exit;
 pub struct ArgsOption{
     pub golden_key: Option<String>,
     pub path_config: Option<String>,
+    pub reload: Option<bool>
 }
 
 impl ArgsOption {
     pub fn new() -> ArgsOption {
         let mut args = std::env::args().skip(1);
         let mut golden_key: Option<String> = None;
+        let mut reload: Option<bool> = None;
         let mut path_config: Option<String> = None;
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -23,6 +25,14 @@ impl ArgsOption {
                         eprintln!("Warning: --golden_key specified multiple times");
                     }
                 }
+                "--reload" => {
+                    if reload.is_none() {
+                        reload = Some(true);
+                    } else {
+                        eprintln!("Warning: --reload specified multiple times");
+                    }
+                }
+                
                 "--path_config" | "-pc" => {
                     if path_config.is_none() {
                         if let Some(value) = args.next() {
@@ -46,7 +56,7 @@ impl ArgsOption {
             }
         }
 
-        ArgsOption { golden_key, path_config }
+        ArgsOption { golden_key, reload, path_config }
     }
 
     fn print_help() {
