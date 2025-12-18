@@ -2,11 +2,22 @@ import  json
 
 import json
 from functools import wraps
-import  sys
+from typing import Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+class BasePlugin(ABC):
+    @staticmethod
+    def load() -> None:
+        pass
 
+    @staticmethod
+    async def message_hook(message: dict | str, me: dict | str) -> bool:
+        return False
 
+    @staticmethod
+    async def order_hook(order: dict | str, me: dict | str) -> bool:
+        return False
 
-def message(func):
+def default_hook(func):
     @wraps(func)
     async def wrapper(*args):
         args_with_dict=list()
