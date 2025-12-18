@@ -13,7 +13,7 @@ pub async fn get_socket_handler(
         println!("Socket server started on 127.0.0.1:58899");
         loop {
             match listener_sock.accept().await {
-                Ok((mut socket, addr)) => {
+                Ok((mut socket, _addr)) => {
                     let state_app = Arc::clone(&state_app);
                     tokio::spawn(async move {
                         let mut buf = [0; 1024];
@@ -34,12 +34,12 @@ pub async fn get_socket_handler(
                                         println!("Failed to send response: {}", e);
                                     }
                                 }
-                                Err(e) => {break}
+                                Err(_) => {break}
                             }
                         }
                     });
                 }
-                Err(e) => {}
+                Err(_) => {}
             }
         }
     });
