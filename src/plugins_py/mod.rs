@@ -10,8 +10,8 @@ use pyo3::types::PyDict;
 pub struct Plugin {
     #[warn(unused_variables)]
     pub name: String,
-    pub message_hook: Py<PyAny>,
-    // pub order_hook: Py<PyAny>,
+    pub message_hook: Option<Py<PyAny>>,
+    pub order_hook: Option<Py<PyAny>>,
 }
 
 
@@ -50,13 +50,15 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
         let plugin_instance = plugin_class.call0()
             .expect("Failed to create Plugin instance");
 
-        let message_hook = plugin_instance.getattr("message_hook")
-            .expect("No \"message_hook\" method in Plugin found")
-            .into();
+        let message_hook: Option<Py<PyAny>> = match plugin_instance.getattr("message_hook"){
+            Ok(hook) => Some(hook.into()),
+            Err(_) => None
+        };
 
-        // let order_hook = plugin_instance.getattr("order_hook")
-        //     .expect("No \"order_hook\" method in Plugin found")
-        //     .into();
+        let order_hook: Option<Py<PyAny>> = match plugin_instance.getattr("order_hook"){
+            Ok(hook) => Some(hook.into()),
+            Err(_) => None
+        };
 
         let load = plugin_instance.getattr("load")
             .expect("No \"load\" method in Plugin found");
@@ -66,7 +68,7 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
         Plugin {
             name: info_plugin.name,
             message_hook,
-            // order_hook,
+            order_hook,
         }
     })
 }
