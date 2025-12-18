@@ -70,7 +70,7 @@ async fn main() -> Result<(), FunPayError> {
                     handlers::message_handler(message, &sender, &funpay_me, &strategies, &plugins_python).await
                 }
                 Event::NewOrder { order } => {
-                    handlers::order_handler(order, &sender, &funpay_me, &strategies).await
+                    handlers::order_handler(order, &sender, &funpay_me, &strategies, &plugins_python).await
                 }
                 // Event::OrderStatusChanged { order } => {
                 //     handlers::order_handler(order, &sender, &funpay_me, &strategies).await
