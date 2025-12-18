@@ -21,9 +21,10 @@ _____
 
 Все остальные хуки асинхроные
 
-| Хук | Описание | Входные данные |
-| --- | --- | --- |
-| message_hook | Получает данные о сообщение  |     id: int,    chat_id: str,    chat_name: Option,    text: Option,    interlocutor_id: Option,    author_id: int, |
+| Хук          | Описание                       | Входные данные                                                                                                                                                                                                                                                 |
+|--------------|--------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| message_hook | Получает данные о сообщение    | id: int,    chat_id: str,    chat_name: Option<str>,    text: Option<str>,    interlocutor_id: Option<int>,    author_id: int,                                                                                                                                 |
+| order_hook   | Получает данные о новом заказе | id: str,    description: str,    price: float,    currency: str,    buyer_username: str,    buyer_id: str,    chat_id: str,    status:    Literal['Paid', 'Closed', 'Refunded'],    date_text: str,    subcategory:    Dict["id": Option<str>, "name": String] |
 
 Массивные данные(которые даются каждому хуку)
 me: str - golden_key: str, id: int
@@ -53,37 +54,64 @@ class Plugin():
 
 ```python
 class Plugin():
-    from base import message
+    from base import default_hook
     @staticmethod
     def load() -> None:
         print("Hi plugin async_chats_tg, load!")
 
     @staticmethod
-    @message
+    @default_hook
     async def message_hook(message: dict, me: dict) -> bool:
         return True
 ```
+Абстракции для подсказок IDE
+
+__Выходные данные c абстракцией будет False__
+```python
+from base import BasePlugin
+class Plugin(BasePlugin):
+    import sys
+    from base import  default_hook #Читать ниже
+    @staticmethod
+    def load() -> None:
+        print("Hi plugin async_chats_tg, load!")
+
+    @staticmethod
+    @default_hook
+    async def message_hook(message: dict, me: dict) -> bool:
+        return True
+
+    @staticmethod
+    @default_hook
+    async def order_hook(order: dict | str, me: dict | str) -> bool:
+        print(order)
+        return True
+```
+
+
 Что делать если мы хотим воспользоваться любой библиотекой из venv или стандартной в хуке то необходимо импортировать в саму функцию
 
 Мне для создание системы плагинов необходимо было посмотреть все пути в sys.path
 ```python
-import sys
-# print(sys.path) - сработает при load
-# Plugin.load и писать в майне ни чем не отличаеться
-class Plugin():
-    import sys
-    # print(sys.path) - сработает
-    from base import  message
+from base import BasePlugin
+
+class Plugin(BasePlugin):
+    from base import default_hook 
     @staticmethod
     def load() -> None:
         print("Hi plugin async_chats_tg, load!")
 
     @staticmethod
-    @message
+    @default_hook
     async def message_hook(message: dict, me: dict) -> bool:
-        # print(Plugin.sys.path) - не сработает
         import sys
         print(sys.path)
+        return True
+
+    @staticmethod
+    @default_hook
+    async def order_hook(order: dict | str, me: dict | str) -> bool:
+        print(order)
         return True
 ```
 
