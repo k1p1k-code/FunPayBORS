@@ -16,10 +16,11 @@ use args::ArgsOption;
 
 use crate::plugins_py::Plugin;
 use crate::models::{AppState, State};
-
+use crate::utils::print_project;
 
 #[tokio::main]
 async fn main() -> Result<(), FunPayError> {
+    print_project();
     let args_option = ArgsOption::new();
     if !args_option.reload.is_none(){
         let mut stream = TcpStream::connect("127.0.0.1:58899").await.expect("Failed to connect to the server, mb run application with --server");

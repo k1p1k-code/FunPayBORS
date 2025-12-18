@@ -3,6 +3,35 @@ use funpay_client::models::{Message, OrderShortcut};
 use crate::models::FPMe;
 use serde_json::{Number, };
 
+pub fn print_project(){
+    let rep=String::from("Repository: https://github.com/k1p1k-code/FunPayBORS");
+    let support=String::from("Support: https://t.me/FunPayBors");
+
+    let mut len_line={
+      if rep > support{
+          rep.len()
+      }
+      else if rep < support{
+            support.len()
+        }
+      else {
+          rep.len()
+        }
+    };
+    len_line=len_line*2-10;
+    let mut string_line=String::new();
+    for _ in 0..len_line{
+        string_line.push_str("_");
+    }
+
+
+    println!("&{}&", string_line);
+    println!("|- {}", rep);
+    println!("|- {}", support);
+    println!("&{}&", string_line);
+
+}
+
 pub fn funpay_me_to_json_value(fpme: &FPMe) -> Value {
     let mut map = Map::new();
     map.insert("id".to_string(), Value::Number(Number::from(fpme.id)));
