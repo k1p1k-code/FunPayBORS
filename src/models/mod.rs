@@ -1,5 +1,5 @@
 pub mod strategy;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 
 #[derive(Serialize, Clone)]
 pub struct FPMe{
