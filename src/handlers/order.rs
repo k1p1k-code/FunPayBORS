@@ -29,7 +29,7 @@ pub async fn order_handler(order: OrderShortcut, sender: &FunPaySender, me: &FPM
             Ok(b) => b,
             Err(e) => {println!("Plugin \"{}\" message hook returned error, about message_handler!\nError: {:?}", i.name, e); return;},
         };
-        if !con{
+        if con{
             return;
         }
     }
