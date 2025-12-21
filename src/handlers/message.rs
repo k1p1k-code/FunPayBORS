@@ -1,5 +1,6 @@
+use std::process::exit;
 use std::sync::Arc;
-use funpay_client::FunPaySender;
+use funpay_client::{FunPayError, FunPaySender};
 use funpay_client::models::Message;
 use crate::models::{
     FPMe,
@@ -26,11 +27,11 @@ pub async fn message_handler(message: Message, sender: &FunPaySender, me: &FPMe,
             Some(hook) => {hook},
             None => {continue;}
         };
-        let con=match run_hook(message_hook, args_py).await {
+        let con=match run_hook(message_hook, Some(args_py)).await {
             Ok(b) => b,
             Err(e) => {println!("Plugin \"{}\" message hook returned error, about message_handler!\nError: {:?}", i.name, e); return;},
         };
-        if !con{
+        if con{
             return;
         }
     }
@@ -43,7 +44,13 @@ pub async fn message_handler(message: Message, sender: &FunPaySender, me: &FPMe,
     };
 
     for i in strategies.message.iter() {
-        if i.strategy_text.check(&text){sender.send_chat_message(&message.chat_id, &i.answer).await.unwrap();}
+        if i.strategy_text.check(&text){
+            sender.send_chat_message(&message.chat_id, &i.answer).await.unwrap_or_else(|m|{
+                match m {
+                    FunPayError::Unauthorized => { println!("The golden Key became invalid, exit");exit(401)},
+                    _ => {println!("Error send message {:?}", m);}
+                }
+            });}
     }
 
 }
