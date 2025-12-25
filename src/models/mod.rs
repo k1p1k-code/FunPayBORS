@@ -1,20 +1,27 @@
 pub mod strategy;
-use serde::{Serialize};
+use serde::Serialize;
 
 #[derive(Serialize, Clone)]
-pub struct FPMe{
+pub struct FPMe {
     pub id: i64,
-    pub golden_key: String
+    pub golden_key: String,
 }
 
-
 #[derive(Debug)]
-pub enum State{
+pub enum State {
     RELOAD,
-    DEFAULT
+    DEFAULT,
 }
 
 #[derive(Debug)]
-pub struct AppState{
+pub struct AppState {
     pub app_state: State,
+}
+
+impl AppState {
+    pub fn new() -> AppState {
+        AppState {
+            app_state: State::DEFAULT,
+        }
+    }
 }
