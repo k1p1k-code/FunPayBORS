@@ -1,30 +1,35 @@
+mod args;
 mod handlers;
 mod models;
-mod args;
 mod plugins_py;
+mod server;
 mod utils;
-mod sock;
 
-use std::sync::Arc;
+use args::ArgsOption;
 use funpay_client::events::Event;
 use funpay_client::{FunPayAccount, FunPayError};
-use tokio::io::{AsyncWriteExt};
+use models::strategy::Strategies;
+use std::sync::Arc;
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
-use models::strategy::Strategies;
-use args::ArgsOption;
 
-use crate::plugins_py::Plugin;
 use crate::models::{AppState, State};
+use crate::plugins_py::Plugin;
 use crate::utils::print_project;
 
 #[tokio::main]
 async fn main() -> Result<(), FunPayError> {
     print_project();
     let args_option = ArgsOption::new();
-    if !args_option.reload.is_none(){
-        let mut stream = TcpStream::connect("127.0.0.1:58899").await.expect("Failed to connect to the server, mb run application with --server");
-        stream.write_all(b"reload").await.expect("Failed to write to server");
+    if !args_option.reload.is_none() {
+        let mut stream = TcpStream::connect("127.0.0.1:58899")
+            .await
+            .expect("Failed to connect to the server, mb run application with --server");
+        stream
+            .write_all(b"reload")
+            .await
+            .expect("Failed to write to server");
         println!("Wait for any FunPay event to reload plugins");
         std::process::exit(0);
     }
@@ -42,22 +47,26 @@ async fn main() -> Result<(), FunPayError> {
 
     let sender = FunPayAccount::create_sender(&account).expect("Error creating sender");
     let funpay_me = models::FPMe {
-        id: account.id.expect("Error get info me, mb no valid golden key"),
-        golden_key: golden_key.clone()
+        id: account
+            .id
+            .expect("Error get info me, mb no valid golden key"),
+        golden_key: golden_key.clone(),
     };
     let strategies = Strategies::new(args_option.path_config).expect("Error");
     let mut rx = account.subscribe();
-    let app_state = Arc::new(Mutex::new(AppState { app_state: State::DEFAULT }));
+    let app_state = Arc::new(Mutex::new(AppState {
+        app_state: State::DEFAULT,
+    }));
 
-    let event_handler_app_state=app_state.clone();
+    let event_handler_app_state = app_state.clone();
     let event_handler = tokio::spawn(async move {
         while let Ok(event) = rx.recv().await {
-            let state=event_handler_app_state.clone();
-            let mut state=state.lock().await;
+            let state = event_handler_app_state.clone();
+            let mut state = state.lock().await;
             match state.app_state {
                 State::RELOAD => {
                     println!("---------------\nReloading plugin...");
-                    plugins_python=plugins_py::loader_plugins().unwrap_or_else(|m| {
+                    plugins_python = plugins_py::loader_plugins().unwrap_or_else(|m| {
                         println!("! Reload ! {}", m);
                         vec![]
                     });
@@ -68,10 +77,24 @@ async fn main() -> Result<(), FunPayError> {
 
             match event {
                 Event::NewMessage { message } => {
-                    handlers::message_handler(message, &sender, &funpay_me, &strategies, &plugins_python).await
+                    handlers::message_handler(
+                        message,
+                        &sender,
+                        &funpay_me,
+                        &strategies,
+                        &plugins_python,
+                    )
+                    .await
                 }
                 Event::NewOrder { order } => {
-                    handlers::order_handler(order, &sender, &funpay_me, &strategies, &plugins_python).await
+                    handlers::order_handler(
+                        order,
+                        &sender,
+                        &funpay_me,
+                        &strategies,
+                        &plugins_python,
+                    )
+                    .await
                 }
                 // Event::OrderStatusChanged { order } => {
                 //     handlers::order_handler(order, &sender, &funpay_me, &strategies).await
@@ -82,11 +105,12 @@ async fn main() -> Result<(), FunPayError> {
     });
 
     if args_option.server.is_some() {
-        let listener_sock = TcpListener::bind("127.0.0.1:58899").await?;
-        let socket_handler = sock::get_socket_handler(listener_sock, app_state.clone()).await;
+        let listener_server = TcpListener::bind("127.0.0.1:58899").await?;
+        let serveret_handler =
+            server::get_serveret_handler(listener_server, app_state.clone()).await;
         tokio::select! {
-            _ = socket_handler => {
-                println!("Socket server stopped");
+            _ = serveret_handler => {
+                println!("serveret server stopped");
             }
             _ = event_handler => {
                 println!("FunPay event handler stopped");
