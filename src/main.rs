@@ -9,9 +9,10 @@ use args::ArgsOption;
 use funpay_client::events::Event;
 use funpay_client::{FunPayAccount, FunPayError};
 use models::strategy::Strategies;
+use reqwest;
+use std::process::exit;
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use crate::models::{AppState, State};
@@ -20,20 +21,17 @@ use crate::utils::print_project;
 
 #[tokio::main]
 async fn main() -> Result<(), FunPayError> {
-    print_project();
     let args_option = ArgsOption::new();
     if !args_option.reload.is_none() {
-        let mut stream = TcpStream::connect("127.0.0.1:58899")
+        let client = reqwest::Client::new();
+        client
+            .post("http://127.0.0.1:58899/reload")
+            .send()
             .await
-            .expect("Failed to connect to the server, mb run application with --server");
-        stream
-            .write_all(b"reload")
-            .await
-            .expect("Failed to write to server");
-        println!("Wait for any FunPay event to reload plugins");
-        std::process::exit(0);
+            .expect("The request was not sent, make sure the application is running with the --server flag.");
+        exit(1)
     }
-
+    print_project();
     let mut plugins_python: Vec<Plugin> = plugins_py::loader_plugins().unwrap_or_else(|m| {
         println!("{}", m);
         vec![]
@@ -52,11 +50,10 @@ async fn main() -> Result<(), FunPayError> {
             .expect("Error get info me, mb no valid golden key"),
         golden_key: golden_key.clone(),
     };
+
     let strategies = Strategies::new(args_option.path_config).expect("Error");
     let mut rx = account.subscribe();
-    let app_state = Arc::new(Mutex::new(AppState {
-        app_state: State::DEFAULT,
-    }));
+    let app_state = Arc::new(Mutex::new(AppState::new()));
 
     let event_handler_app_state = app_state.clone();
     let event_handler = tokio::spawn(async move {
@@ -96,25 +93,25 @@ async fn main() -> Result<(), FunPayError> {
                     )
                     .await
                 }
-                // Event::OrderStatusChanged { order } => {
-                //     handlers::order_handler(order, &sender, &funpay_me, &strategies).await
-                // }
                 _ => {}
             }
         }
     });
 
     if args_option.server.is_some() {
+        #[warn(unused)]
+        let router = server::build_router(app_state).await;
         let listener_server = TcpListener::bind("127.0.0.1:58899").await?;
-        let serveret_handler =
-            server::get_serveret_handler(listener_server, app_state.clone()).await;
+
+        let _server_handle = tokio::spawn(async move {
+            println!("Server start on 127.0.0.1:58899");
+            if let Err(e) = axum::serve(listener_server, router).await {
+                eprintln!("❌ Server error: {}", e);
+            }
+        });
+
         tokio::select! {
-            _ = serveret_handler => {
-                println!("serveret server stopped");
-            }
-            _ = event_handler => {
-                println!("FunPay event handler stopped");
-            }
+
             result = account.start_polling_loop() => {
                 if let Err(e) = result {
                     eprintln!("Polling loop error: {}", e);
