@@ -1,10 +1,11 @@
 use std::process::exit;
 
-pub struct ArgsOption{
+pub struct ArgsOption {
     pub golden_key: Option<String>,
     pub path_config: Option<String>,
     pub reload: Option<bool>,
     pub server: Option<bool>,
+    pub _is_have: bool,
 }
 
 impl ArgsOption {
@@ -63,8 +64,18 @@ impl ArgsOption {
                 }
             }
         }
+        let mut _is_have = false;
+        if golden_key.is_some() | reload.is_some() | path_config.is_some() | server.is_some() {
+            _is_have = true
+        }
 
-        ArgsOption { golden_key, reload, path_config, server }
+        ArgsOption {
+            golden_key,
+            reload,
+            path_config,
+            server,
+            _is_have,
+        }
     }
 
     fn print_help() {
@@ -74,8 +85,12 @@ impl ArgsOption {
         println!("Options:");
         println!("  -gk, --golden_key  KEY  FunPay golden key");
         println!("  -pc, --path_config PATH Path to configuration file");
-        println!("  --server                Launches an application with a TCP listener on port 58899");
-        println!("  --reload                Hot reload plugins, the application must be started with --server");
+        println!(
+            "  --server                Launches an application with a TCP listener on port 58899"
+        );
+        println!(
+            "  --reload                Hot reload plugins, the application must be started with --server"
+        );
         println!("  -h,  --help             Show this help message");
         exit(31);
     }
