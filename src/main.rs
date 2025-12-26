@@ -29,6 +29,7 @@ async fn main() -> Result<(), FunPayError> {
             .send()
             .await
             .expect("The request was not sent, make sure the application is running with the --server flag.");
+        println!("Wait any event in FunPay");
         exit(1)
     }
     print_project();
@@ -85,6 +86,16 @@ async fn main() -> Result<(), FunPayError> {
                 }
                 Event::NewOrder { order } => {
                     handlers::order_handler(
+                        order,
+                        &sender,
+                        &funpay_me,
+                        &strategies,
+                        &plugins_python,
+                    )
+                    .await
+                }
+                Event::OrderStatusChanged { order } => {
+                    handlers::order_status_changed_handler(
                         order,
                         &sender,
                         &funpay_me,
