@@ -21,10 +21,32 @@ _____
 
 Все остальные хуки асинхроные
 
-| Хук          | Описание                       | Входные данные                                                                                                                                                                                                                                                 |
-|--------------|--------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| message_hook | Получает данные о сообщение    | id: int,    chat_id: str,    chat_name: Option<str>,    text: Option<str>,    interlocutor_id: Option<int>,    author_id: int,                                                                                                                                 |
-| order_hook   | Получает данные о новом заказе | id: str,    description: str,    price: float,    currency: str,    buyer_username: str,    buyer_id: str,    chat_id: str,    status:    Literal['Paid', 'Closed', 'Refunded'],    date_text: str,    subcategory:    Dict["id": Option<str>, "name": String] |
+
+<table>
+		<tr>
+			<td>Название</td>
+			<td>Описание</td>
+			<td>Входные данные</td>
+		</tr>
+		<tr>
+			<td>message_hook</td>
+			<td>Получает данные о новом сообщение </td>
+			<td>id: int, chat_id: str, chat_name: Option, text: Option, interlocutor_id: Option, author_id: int,</td>
+		</tr>
+		<tr>
+			<td>order_hook</td>
+			<td>Получает данные о новом заказе</td>
+			<td>id: str, description: str, price: float, currency: 
+			str, buyer_username: str, buyer_id: str, 
+			chat_id: str, status: Literal['Paid', 'Closed', 'Refunded'], date_text: str, subcategory: Dict["id": Option, "name": String]</td>
+		</tr>
+		<tr>
+			<td>order_status_changed_hook</td>
+			<td>Получает данные о новом заказе которой изменили</td>
+			<td>order_hook</td>
+		</tr>
+</table>
+
 
 Массивные данные(которые даются каждому хуку)
 me: str - golden_key: str, id: int
@@ -130,3 +152,38 @@ class Plugin(BasePlugin):
 5. Теперь мы можем использовать из другой консоли```FunPayBors_64x.exe --reload```
 
 Данная команда по сокетам отправит запрос запущенному приложению о перезагрузки плагинов, не запускайте с флагом --server в продакшейне так как любой желающий знающий порт(его можно найти в исходном коде данного проекта) сможет отправить запрос для reload или изолируйте порт 58899
+
+## Сохранение данных
+
+Самый простой способ это создать аргумент в функции по умполчанию
+```python
+@staticmethod
+@default_hook
+    async def message_hook(message: dict, me: dict, st={"text": list()}) -> bool:
+    st["text"].append(message["text"])
+    print(st)
+```
+Но возникает проблема то что хуки не смогут между собой общаться ради решение этой проблемы Rust сохраняет глобальную переменую storage если такая есть и отдает ее напрямую в функцию
+
+``` python
+from base import BasePlugin
+
+storage = {"text": list()}
+
+class Plugin(BasePlugin):
+    from base import default_hook
+
+    @staticmethod
+    def load() -> None:
+        print("Console info, load!")
+
+    @staticmethod
+    @default_hook
+    async def message_hook(message: dict, me: dict) -> bool:
+        storage["text"].append(message["text"])
+        print(storage)
+        return False
+```
+Если storage не определена в глобальной видимости то она не будет передоваться. Напоминаю rust вызывает только функци без сохранение данных, которые не в ее видимости
+
+Переменая должна называться строго storage, туда можно сохранить любой тип данных, rust сохраняет ссылку на нее
