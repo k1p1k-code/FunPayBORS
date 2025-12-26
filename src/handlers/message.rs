@@ -25,7 +25,7 @@ pub async fn message_handler(
                 continue;
             }
         };
-        let con = match run_hook(message_hook, args_py).await {
+        let con = match run_hook(message_hook, args_py, &i.storage).await {
             Ok(b) => b,
             Err(e) => {
                 println!(
@@ -40,7 +40,7 @@ pub async fn message_handler(
         }
     }
 
-    if me.id == message.author_id {
+    if me.id == message.author_id || message.author_id == 0 {
         return;
     }
 

@@ -26,11 +26,11 @@ pub async fn order_handler(
                 continue;
             }
         };
-        let con = match run_hook(order_hook, args_py).await {
+        let con = match run_hook(order_hook, args_py, &i.storage).await {
             Ok(b) => b,
             Err(e) => {
                 println!(
-                    "Plugin \"{}\" message hook returned error, about message_handler!\nError: {:?}",
+                    "Plugin \"{}\" order hook returned error, about message_handler!\nError: {:?}",
                     i.name, e
                 );
                 return;
