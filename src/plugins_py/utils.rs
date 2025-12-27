@@ -10,9 +10,9 @@ async fn call_hook(
         Python::attach(|py| {
             let locals = pyo3_async_runtimes::tokio::get_current_locals(py)?;
             let bound_func = py_func.bind(py);
-            if storage.is_some() {
+            if let Some(s) = storage {
                 let globals = PyModule::import(py, "__main__")?;
-                let _ = globals.setattr("storage", storage.unwrap()).unwrap();
+                let _ = globals.setattr("storage", s).unwrap();
             }
             let plain_args: (String, String) = (args.0.as_ref().clone(), args.1.as_ref().clone());
             let py_future = bound_func.call1(plain_args)?;
@@ -38,8 +38,8 @@ pub async fn run_hook(
 
         let args_clone = args.clone();
         let mut strg: Option<Py<PyAny>> = None;
-        if storage.is_some() {
-            strg = Some(storage.as_ref().unwrap().clone_ref(py));
+        if let Some(s) = storage {
+            strg = Some(s.clone_ref(py));
         }
         pyo3_async_runtimes::tokio::run(
             py,
