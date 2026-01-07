@@ -1,7 +1,6 @@
 mod args;
 mod handlers;
 mod models;
-mod plugins_py;
 mod server;
 mod utils;
 
@@ -16,7 +15,7 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use crate::models::{AppState, State};
-use crate::plugins_py::Plugin;
+use PythonPlugins::Plugin;
 use crate::utils::print_project;
 
 #[tokio::main]
@@ -33,7 +32,7 @@ async fn main() -> Result<(), FunPayError> {
         exit(1)
     }
     print_project();
-    let mut plugins_python: Vec<Plugin> = plugins_py::loader_plugins().unwrap_or_else(|m| {
+    let mut plugins_python: Vec<Plugin> = PythonPlugins::loader_plugins().unwrap_or_else(|m| {
         println!("{}", m);
         vec![]
     });
@@ -64,7 +63,7 @@ async fn main() -> Result<(), FunPayError> {
             match state.app_state {
                 State::RELOAD => {
                     println!("---------------\nReloading plugin...");
-                    plugins_python = plugins_py::loader_plugins().unwrap_or_else(|m| {
+                    plugins_python = PythonPlugins::loader_plugins().unwrap_or_else(|m| {
                         println!("! Reload ! {}", m);
                         vec![]
                     });

@@ -1,6 +1,6 @@
 use crate::models::{FPMe, strategy::Strategies};
-use crate::plugins_py::Plugin;
-use crate::plugins_py::utils::run_hook;
+use PythonPlugins::Plugin;
+use PythonPlugins::utils::run_hook;
 use crate::utils::*;
 use funpay_client::models::Message;
 use funpay_client::{FunPayError, FunPaySender};

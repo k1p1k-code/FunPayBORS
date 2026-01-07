@@ -6,15 +6,22 @@ version = 4
 name = "FunPayBORS"
 version = "0.1.0"
 dependencies = [
+ "PythonPlugins",
  "axum",
  "funpay-client",
  "parking_lot 0.12.5",
- "pyo3",
- "pyo3-async-runtimes",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "PythonPlugins"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "pyo3-async-runtimes",
 ]
 
 [[package]]
