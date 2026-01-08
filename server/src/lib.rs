@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::{AppState, State};
+use models::{AppState, State};
 use axum::{Router, routing::post};
 use tokio::sync::Mutex;
 

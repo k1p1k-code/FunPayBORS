@@ -1,11 +1,12 @@
-use crate::models::{FPMe, strategy::Strategies};
-use PythonPlugins::Plugin;
-use PythonPlugins::utils::run_hook;
+use models::FPMe;
+use python_plugins::Plugin;
+use python_plugins::utils::run_hook;
 use crate::utils::*;
 use funpay_client::models::Message;
 use funpay_client::{FunPayError, FunPaySender};
 use std::process::exit;
 use std::sync::Arc;
+use crate::strategy::Strategies;
 
 pub async fn message_handler(
     message: Message,

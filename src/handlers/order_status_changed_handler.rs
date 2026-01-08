@@ -1,7 +1,7 @@
-use crate::models::FPMe;
-use crate::models::strategy::Strategies;
-use PythonPlugins::Plugin;
-use PythonPlugins::utils::run_hook;
+use models::FPMe;
+use crate::strategy::Strategies;
+use python_plugins::Plugin;
+use python_plugins::utils::run_hook;
 use crate::utils::*;
 use funpay_client::FunPaySender;
 use funpay_client::models::OrderShortcut;

@@ -1,6 +1,6 @@
 pub(crate) use serde_json::{Value, Map};
 use funpay_client::models::{Message, OrderShortcut};
-use crate::models::FPMe;
+use models::FPMe;
 use serde_json::{Number, };
 
 pub fn print_project(){

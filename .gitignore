@@ -1,3 +1,6 @@
-/target
+*/target
 /.zed/tasks.json
 /plugins
+/models/target/*
+/server/target/*
+/python_plugins/target/*

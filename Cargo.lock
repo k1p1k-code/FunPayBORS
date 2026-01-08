@@ -6,22 +6,16 @@ version = 4
 name = "FunPayBORS"
 version = "0.1.0"
 dependencies = [
- "PythonPlugins",
  "axum",
  "funpay-client",
+ "models",
  "parking_lot 0.12.5",
+ "python_plugins",
  "reqwest",
  "serde",
  "serde_json",
+ "server",
  "tokio",
-]
-
-[[package]]
-name = "PythonPlugins"
-version = "0.1.0"
-dependencies = [
- "pyo3",
- "pyo3-async-runtimes",
 ]
 
 [[package]]
@@ -921,6 +915,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "models"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1278,6 +1279,14 @@ dependencies = [
  "pyo3-build-config",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "python_plugins"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "pyo3-async-runtimes",
 ]
 
 [[package]]
@@ -1667,6 +1676,15 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "models",
+ "tokio",
 ]
 
 [[package]]

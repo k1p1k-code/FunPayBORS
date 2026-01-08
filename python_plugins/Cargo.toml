@@ -1,5 +1,5 @@
 [package]
-name = "PythonPlugins"
+name = "python_plugins"
 version = "0.1.0"
 edition = "2024"
 

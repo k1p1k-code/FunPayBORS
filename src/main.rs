@@ -1,21 +1,21 @@
 mod args;
 mod handlers;
-mod models;
-mod server;
 mod utils;
+pub mod strategy;
 
 use args::ArgsOption;
 use funpay_client::events::Event;
 use funpay_client::{FunPayAccount, FunPayError};
-use models::strategy::Strategies;
+use strategy::Strategies;
 use reqwest;
 use std::process::exit;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
-use crate::models::{AppState, State};
-use PythonPlugins::Plugin;
+use models::{AppState, State};
+use python_plugins::Plugin;
+use server;
 use crate::utils::print_project;
 
 #[tokio::main]
@@ -32,7 +32,7 @@ async fn main() -> Result<(), FunPayError> {
         exit(1)
     }
     print_project();
-    let mut plugins_python: Vec<Plugin> = PythonPlugins::loader_plugins().unwrap_or_else(|m| {
+    let mut plugins_python: Vec<Plugin> = python_plugins::loader_plugins().unwrap_or_else(|m| {
         println!("{}", m);
         vec![]
     });
@@ -63,7 +63,7 @@ async fn main() -> Result<(), FunPayError> {
             match state.app_state {
                 State::RELOAD => {
                     println!("---------------\nReloading plugin...");
-                    plugins_python = PythonPlugins::loader_plugins().unwrap_or_else(|m| {
+                    plugins_python = python_plugins::loader_plugins().unwrap_or_else(|m| {
                         println!("! Reload ! {}", m);
                         vec![]
                     });
