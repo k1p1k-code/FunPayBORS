@@ -14,7 +14,6 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use models::{AppState, State};
-use python_plugins::Plugin;
 use server;
 use crate::utils::print_project;
 
@@ -24,7 +23,7 @@ async fn main() -> Result<(), FunPayError> {
     if !args_option.reload.is_none() {
         let client = reqwest::Client::new();
         client
-            .post("http://127.0.0.1:58899/reload")
+            .post("http://127.0.0.1:58899/plugins/reload")
             .send()
             .await
             .expect("The request was not sent, make sure the application is running with the --server flag.");
@@ -32,13 +31,16 @@ async fn main() -> Result<(), FunPayError> {
         exit(1)
     }
     print_project();
-    let mut plugins_python: Vec<Plugin> = python_plugins::loader_plugins().unwrap_or_else(|m| {
-        println!("{}", m);
-        vec![]
-    });
+
+    let mut plugins_python_sync = Arc::new(Mutex::new(
+        python_plugins::loader_plugins().unwrap_or_else(|m| {
+            println!("{}", m);
+            vec![]
+        })
+    ));
 
     let golden_key = args_option.golden_key.unwrap_or_else(|| {
-        std::env::var("GOLDEN_KEY").expect("Golden key not found in env and args")
+        std::env::var("GOLDEN_KEY").unwrap()
     });
     let mut account = FunPayAccount::new(golden_key.clone());
     account.init().await?;
@@ -53,7 +55,7 @@ async fn main() -> Result<(), FunPayError> {
 
     let strategies = Strategies::new(args_option.path_config).expect("Error");
     let mut rx = account.subscribe();
-    let app_state = Arc::new(Mutex::new(AppState::new()));
+    let app_state = Arc::new(Mutex::new(AppState::new(plugins_python_sync.clone())));
 
     let event_handler_app_state = app_state.clone();
     let event_handler = tokio::spawn(async move {
@@ -63,15 +65,19 @@ async fn main() -> Result<(), FunPayError> {
             match state.app_state {
                 State::RELOAD => {
                     println!("---------------\nReloading plugin...");
-                    plugins_python = python_plugins::loader_plugins().unwrap_or_else(|m| {
-                        println!("! Reload ! {}", m);
-                        vec![]
-                    });
+                    plugins_python_sync = Arc::new(Mutex::new(
+                        python_plugins::loader_plugins().unwrap_or_else(|m| {
+                            println!("{}", m);
+                            vec![]
+                        })
+                    ));
+
                     state.app_state = State::DEFAULT;
+                    state.plugins = plugins_python_sync.clone();
                 }
                 State::DEFAULT => {}
             }
-
+            let plugins_python= plugins_python_sync.clone();
             match event {
                 Event::NewMessage { message } => {
                     handlers::message_handler(
@@ -79,7 +85,7 @@ async fn main() -> Result<(), FunPayError> {
                         &sender,
                         &funpay_me,
                         &strategies,
-                        &plugins_python,
+                        plugins_python,
                     )
                     .await
                 }
@@ -89,7 +95,7 @@ async fn main() -> Result<(), FunPayError> {
                         &sender,
                         &funpay_me,
                         &strategies,
-                        &plugins_python,
+                        plugins_python,
                     )
                     .await
                 }
@@ -99,7 +105,7 @@ async fn main() -> Result<(), FunPayError> {
                         &sender,
                         &funpay_me,
                         &strategies,
-                        &plugins_python,
+                        plugins_python,
                     )
                     .await
                 }

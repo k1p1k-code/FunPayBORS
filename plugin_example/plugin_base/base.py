@@ -1,9 +1,11 @@
 import  json
 
-import json
 from functools import wraps
-from typing import Protocol, runtime_checkable
-from abc import ABC, abstractmethod
+from abc import ABC
+from typing import List
+
+
+
 class BasePlugin(ABC):
     @staticmethod
     def load() -> None:
@@ -16,6 +18,10 @@ class BasePlugin(ABC):
     @staticmethod
     async def order_hook(order: dict | str, me: dict | str) -> bool:
         return False
+
+    @staticmethod
+    async def build_menu() -> List[dict]:
+        return []
 
 def default_hook(func):
     @wraps(func)

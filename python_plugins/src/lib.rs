@@ -5,15 +5,8 @@ use pyo3::{IntoPyObjectExt, prelude::*};
 use std::ffi::CString;
 use std::fs;
 use std::path::PathBuf;
+use models::Plugin;
 
-pub struct Plugin {
-    #[warn(unused_variables)]
-    pub name: String,
-    pub storage: Option<Py<PyAny>>,
-    pub message_hook: Option<Py<PyAny>>,
-    pub order_hook: Option<Py<PyAny>>,
-    pub order_status_changed: Option<Py<PyAny>>,
-}
 
 #[derive(Debug)]
 pub struct InfoPlugin {
@@ -49,16 +42,16 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
         {
             packeage_venv.push("Lib");
         }
-        let python_name = fs::read_dir(&packeage_venv)
-            .expect("No find site-packages in venv")
-            .filter_map(Result::ok)
-            .find(|entry| {
-                entry.path().is_dir() && entry.file_name().to_string_lossy().starts_with("python")
-            })
-            .map(|entry| entry.file_name().to_string_lossy().into_owned())
-            .expect("Invalid venv");
-
-        packeage_venv.push(python_name);
+        // let python_name = fs::read_dir(&packeage_venv)
+        //     .expect("No find site-packages in venv")
+        //     .filter_map(Result::ok)
+        //     .find(|entry| {
+        //         entry.path().is_dir() && entry.file_name().to_string_lossy().starts_with("python")
+        //     })
+        //     .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        //     .expect("Invalid venv");
+        //
+        // packeage_venv.push(python_name);
         packeage_venv.push("site-packages");
         path.insert(0, packeage_venv.to_str()).unwrap();
 
@@ -92,6 +85,11 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
             .call0()
             .expect("Failed to create Plugin instance");
 
+        let build_menu: Option<Py<PyAny>> = match plugin_instance.getattr("build_menu") {
+            Ok(hook) => Some(hook.into()),
+            Err(_) => None,
+        };
+
         let message_hook: Option<Py<PyAny>> = match plugin_instance.getattr("message_hook") {
             Ok(hook) => Some(hook.into()),
             Err(_) => None,
@@ -115,6 +113,7 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
 
         Plugin {
             storage,
+            build_menu,
             name: info_plugin.name,
             message_hook,
             order_hook,

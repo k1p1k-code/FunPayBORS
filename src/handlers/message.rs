@@ -1,11 +1,11 @@
-use models::FPMe;
-use python_plugins::Plugin;
+use models::{FPMe, Plugin};
 use python_plugins::utils::run_hook;
 use crate::utils::*;
 use funpay_client::models::Message;
 use funpay_client::{FunPayError, FunPaySender};
 use std::process::exit;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use crate::strategy::Strategies;
 
 pub async fn message_handler(
@@ -13,12 +13,13 @@ pub async fn message_handler(
     sender: &FunPaySender,
     me: &FPMe,
     strategies: &Strategies,
-    plugin: &Vec<Plugin>,
+    plugin: Arc<Mutex<Vec<Plugin>>>,
 ) {
     let message_for_plugins = Arc::new(message_to_json_value(&message).to_string());
     let me_for_plugins = Arc::new(funpay_me_to_json_value(&me).to_string());
     let args_py = (message_for_plugins.clone(), me_for_plugins.clone());
-    for i in plugin.iter() {
+    let plugins=plugin.lock().await;
+    for i in plugins.iter() {
         let args_py = args_py.clone();
         let message_hook = match &i.message_hook {
             Some(hook) => hook,

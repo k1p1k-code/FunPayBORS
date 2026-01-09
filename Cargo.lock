@@ -918,7 +918,10 @@ dependencies = [
 name = "models"
 version = "0.1.0"
 dependencies = [
+ "parking_lot 0.12.5",
+ "pyo3",
  "serde",
+ "tokio",
 ]
 
 [[package]]
@@ -1285,6 +1288,7 @@ dependencies = [
 name = "python_plugins"
 version = "0.1.0"
 dependencies = [
+ "models",
  "pyo3",
  "pyo3-async-runtimes",
 ]
@@ -1684,7 +1688,12 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "models",
+ "python_plugins",
+ "serde",
+ "serde_json",
  "tokio",
+ "tower",
+ "tower-http",
 ]
 
 [[package]]

@@ -26,14 +26,14 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 
 ## Возможности
 - Готовые ответы на сообщение по ключевым словам или точных фраз
-- Выдача товаров по статическим данных или по листу который сам удаляет ваданый товар
+- Выдача товаров по статическим данных или по листу который сам удаляет выданый товар
 - Написание плагинов на языке программирование python (в разработке)
 - Простое изменение шаблонов
 
 [Версия с плагинами](https://github.com/k1p1k-code/FunPayBORS/releases/tag/0.0.3BETA)
 
 ## Запуск
-1. Скачайте [releases](https://github.com/k1p1k-code/FunPayBORS/releases) послеюнию версию
+1. Скачайте [releases](https://github.com/k1p1k-code/FunPayBORS/releases) последний релиз
 2. Установите [Python](https://python.org)
 3. Распакуйте в отдельную папку
 4. Убедитесь то что FunPayBORS_64x.exe лежит рядом с config.json и папкой plugins
@@ -47,14 +47,14 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 4. Откройте командную строку с директорией где лежит Cargo.toml
 5. Пропишите ```cargo build --release```
 6. Создайте отдельную папку 
-7. Cкопируйте /target/release/FunPayBORS.exe в новую папку
-8. Cкопируйте или создайте /config.json в новую папку
+7. Скопируйте /target/release/FunPayBORS.exe в новую папку
+8. Скопируйте или создайте /config.json в новую папку
 9. Создайте в новой папке папку plugins
 
 ## Помощь
-- Вы можете обратится в [issues](https://github.com/k1p1k-code/FunPayBORS/issues)
+- Вы можете обратиться в [issues](https://github.com/k1p1k-code/FunPayBORS/issues)
 - Или перейти в [Telegram чат](https://t.me/FunPayBors) где я рад помочь
 
-## Понравилось приложени
+## Понравилось приложение
 Поставь звездочку
 <img width="1234" height="44" alt="image" src="https://github.com/user-attachments/assets/befbc058-5d4d-492e-845d-360bc036c3c4" />
