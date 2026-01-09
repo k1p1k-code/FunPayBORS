@@ -7,8 +7,7 @@ edition = "2024"
 axum = "0.8.8"
 tokio = { version = "1", features = ["full"] }
 models = {path = "../models"}
-tower-http = { version = "0.6.8", features = ["cors"] }
+tower-http = { version = "0.6.8", features = ["cors", "fs"] }
 tower = "0.5.2"
-serde_json = "1.0.145"
 serde = { version = "1.0.228", features = ["derive"] }
 python_plugins={path = "../python_plugins"}
