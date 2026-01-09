@@ -30,10 +30,8 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 - Написание плагинов на языке программирование python (в разработке)
 - Простое изменение шаблонов
 
-[Версия с плагинами](https://github.com/k1p1k-code/FunPayBORS/releases/tag/0.0.3BETA)
-
 ## Запуск
-1. Скачайте [releases](https://github.com/k1p1k-code/FunPayBORS/releases) последний релиз
+1. Скачайте [последний релиз](https://github.com/k1p1k-code/FunPayBORS/releases/latest)
 2. Установите [Python](https://python.org)
 3. Распакуйте в отдельную папку
 4. Убедитесь то что FunPayBORS_64x.exe лежит рядом с config.json и папкой plugins
