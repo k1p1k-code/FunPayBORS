@@ -128,7 +128,7 @@ async fn call_hook_input(
     py_func: Py<PyAny>,
     args: (String,),
     storage: Option<Py<PyAny>>,
-) -> PyResult<()> {
+) -> PyResult<String> {
     let future = async move {
         Python::attach(|py| {
             let locals = pyo3_async_runtimes::tokio::get_current_locals(py)?;
@@ -143,15 +143,16 @@ async fn call_hook_input(
     };
 
     let rust_future = future.await?;
-    let _result = rust_future.await?;
-    Ok(())
+    let result = rust_future.await?;
+    let response=Python::attach(|py| result.bind(py).extract::<String>()).unwrap_or_default();
+    Ok(response)
 }
 
 pub async fn run_hook_input(
     hook: &Py<PyAny>,
     args: (String, ),
     storage: &Option<Py<PyAny>>,
-) -> PyResult<()> {
+) -> PyResult<String> {
     pyo3::Python::initialize();
 
     Python::attach(|py| {

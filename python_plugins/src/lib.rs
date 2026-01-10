@@ -72,7 +72,11 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
         ));
 
         let storage: Option<Py<PyAny>> = match locals.get_item("storage") {
-            Ok(s) => Some(s.into_bound_py_any(py).unwrap().into()),
+            Ok(s) => {
+                let globals = PyModule::import(py, "__main__").expect("Invalid plugins | globals");
+                let _ = globals.setattr("storage", locals.get_item("storage").unwrap());
+                Some(s.into_bound_py_any(py).unwrap().into())
+            },
             Err(_) => None,
         };
 

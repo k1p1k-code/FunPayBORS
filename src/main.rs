@@ -38,7 +38,6 @@ async fn main() -> Result<(), FunPayError> {
             vec![]
         })
     ));
-
     let golden_key = args_option.golden_key.unwrap_or_else(|| {
         std::env::var("GOLDEN_KEY").unwrap()
     });

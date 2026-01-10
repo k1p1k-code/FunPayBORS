@@ -20,3 +20,14 @@ pub struct ResponseListPlugins{
     pub inputs: Vec<InputOption>,
 }
 
+#[derive(Serialize, Debug)]
+pub enum ResponseCallbackPluginStatus{
+    Error,
+    Warning,
+    Successfully
+}
+#[derive(Serialize, Debug)]
+pub struct ResponseCallbackPlugins{
+    pub message: Option<String>,
+    pub status: ResponseCallbackPluginStatus,
+}

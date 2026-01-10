@@ -32,12 +32,17 @@ interface InputCallbackRequest {
   data: string;
 }
 
+interface ResponseCallbackPlugin {
+  message: string | null;
+  status: string;
+}
+
 export default function Plugins() {
   const [plugins, setPlugins] = createSignal<Plugin[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [executing, setExecuting] = createSignal<Record<number, boolean>>({});
-  const [resultMessage, setResultMessage] = createSignal<string | null>(null);
+  const [callbackResult, setCallbackResult] = createSignal<ResponseCallbackPlugin | null>(null);
   const [inputValues, setInputValues] = createSignal<Record<number, string>>({});
 
   const API_BASE = 'http://127.0.0.1:58899';
@@ -46,7 +51,7 @@ export default function Plugins() {
   const fetchPlugins = async () => {
     setLoading(true);
     setError(null);
-    setResultMessage(null);
+    setCallbackResult(null);
     
     try {
       const response = await api.get(`${API_BASE}/plugins/list`);
@@ -74,7 +79,7 @@ export default function Plugins() {
   };
 
   const handleButtonClick = async (button: Button, pluginName: string) => {
-    setResultMessage(null);
+    setCallbackResult(null);
     
     const requestData: ButtonCallbackRequest = {
       name: pluginName,
@@ -86,7 +91,7 @@ export default function Plugins() {
   };
 
   const handleInputButtonClick = async (input: Input, pluginName: string) => {
-    setResultMessage(null);
+    setCallbackResult(null);
     
     const inputValue = inputValues()[input.callback_id] || '';
     
@@ -108,38 +113,63 @@ export default function Plugins() {
       
       const response = await api.post(`${API_BASE}/plugins/callback`, requestData);
       
-      let result: any;
-      
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('Server error response:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
       
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      
+      let result: ResponseCallbackPlugin;
+      
       try {
-        result = await response.json();
-      } catch {
-        if (response.ok) {
-          result = { success: true, message: 'Action completed' };
-        } else {
-          throw new Error('Invalid response from server');
+        result = JSON.parse(responseText);
+        
+        if (typeof result !== 'object' || result === null) {
+          result = {
+            message: responseText,
+            status: "success"
+          };
         }
+        
+        if (result.message === undefined) {
+          result.message = null;
+        }
+        if (result.status === undefined) {
+          result.status = "success";
+        }
+      } catch (jsonError) {
+        console.error('JSON parse error:', jsonError, 'Response text:', responseText);
+        result = {
+          message: responseText,
+          status: "error"
+        };
       }
       
-      if (result.success) {
-        setResultMessage(result.message || 'Action completed successfully');
-        
+      console.log('Parsed result:', result);
+      
+      const normalizedResult = {
+        ...result,
+        status: result.status.toLowerCase().trim()
+      };
+      
+      setCallbackResult(normalizedResult);
+      
+      if (normalizedResult.status.includes("success")) {
         if (requestData.callback_type === "input") {
           setInputValues(prev => ({ ...prev, [callbackId]: '' }));
         }
-      } else {
-        throw new Error(result.message || 'Action failed');
       }
       
     } catch (error) {
       console.error('Callback error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setResultMessage(`Error: ${errorMsg}`);
-      
+      setCallbackResult({
+        status: "error",
+        message: errorMsg
+      });
     } finally {
       setTimeout(() => {
         setExecuting(prev => ({ ...prev, [callbackId]: false }));
@@ -154,6 +184,69 @@ export default function Plugins() {
   onMount(() => {
     fetchPlugins();
   });
+
+
+  const getStatusStyles = (status: string) => {
+    const statusLower = status.toLowerCase();
+    
+
+    if (statusLower.includes("error")) {
+      return 'bg-red-100 border border-red-400 text-red-700';
+    } else if (statusLower.includes("warning") || statusLower.includes("warn")) {
+      return 'bg-yellow-100 border border-yellow-400 text-yellow-700';
+    } else if (statusLower.includes("success") || statusLower === "ok") {
+      return 'bg-green-100 border border-green-400 text-green-700';
+    } else {
+      return 'bg-gray-100 border border-gray-400 text-gray-700';
+    }
+  };
+
+
+  const getFormattedMessage = (result: ResponseCallbackPlugin) => {
+    const statusLower = result.status.toLowerCase();
+    
+
+    if (statusLower.includes("error")) {
+      return result.message || 'An error occurred';
+    } else if (statusLower.includes("warning") || statusLower.includes("warn")) {
+      return result.message || 'Warning';
+    } else if (statusLower.includes("success") || statusLower === "ok") {
+      return result.message || 'Successfully completed';
+    } else {
+      return result.message || 'Action completed';
+    }
+  };
+
+
+  const getStatusIcon = (status: string) => {
+    const statusLower = status.toLowerCase();
+    
+    if (statusLower.includes("error")) {
+      return (
+        <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+        </svg>
+      );
+    } else if (statusLower.includes("warning") || statusLower.includes("warn")) {
+      return (
+        <svg class="h-5 w-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+      );
+    } else if (statusLower.includes("success") || statusLower === "ok") {
+      return (
+        <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+      );
+    } else {
+      return (
+        <svg class="h-5 w-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+        </svg>
+      );
+    }
+  };
 
   return (
     <div class="p-5 max-w-4xl mx-auto font-sans">
@@ -175,14 +268,25 @@ export default function Plugins() {
         </div>
       </Show>
       
-      <Show when={resultMessage()}>
-        <div class={`px-4 py-3 rounded mb-4 ${
-          resultMessage()?.startsWith('Error:') 
-            ? 'bg-red-100 border border-red-400 text-red-700' 
-            : 'bg-green-100 border border-green-400 text-green-700'
-        }`}>
-          {resultMessage()}
-        </div>
+      <Show when={callbackResult()}>
+        {(result) => {
+          const status = result().status;
+          const message = getFormattedMessage(result());
+          const styles = getStatusStyles(status);
+          
+          return (
+            <div class={`px-4 py-3 rounded mb-4 ${styles}`}>
+              <div class="flex items-start">
+                <div class="flex-shrink-0 mr-3">
+                  {getStatusIcon(status)}
+                </div>
+                <div>
+                  {message}
+                </div>
+              </div>
+            </div>
+          );
+        }}
       </Show>
       
       <Show 

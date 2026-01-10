@@ -7,6 +7,7 @@ use axum::{
     extract::State as StateAxum,
     Json,
 };
+use crate::models_response::ResponseCallbackPlugins;
 
 pub async fn reload_plugins(StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>){
     let mut h = app_state.lock().await;
@@ -16,7 +17,7 @@ pub async fn reload_plugins(StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>
 
 pub async fn callback_plugin(
     StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>,
-    Json(plugin_callback): Json<models_reqwest::CallbackMenuPlugin>){
+    Json(plugin_callback): Json<models_reqwest::CallbackMenuPlugin>) -> Json<ResponseCallbackPlugins>{
     let h=app_state.lock().await;
     let plugins=h.plugins.lock().await;
     let mut plugin_check=None;
@@ -31,21 +32,59 @@ pub async fn callback_plugin(
         if let Some(build_menu) = &plugin.build_menu{
             let menu=python::run_menu_build(build_menu).await.expect(format!("cannot build menu in {}", plugin.name.to_string()).as_str());
             if let Some(buttons)=menu.button && plugin_callback.callback_type == "button".to_string(){
-                if let Some(button) = buttons.get(plugin_callback.callback_id as usize).clone() {
-                    let _=python::run_hook_no_args(&button.callback, &plugin.storage).await.unwrap();
+                if let Some(button  ) = buttons.get(plugin_callback.callback_id as usize).clone() {
+                    return match python::run_hook_no_args(&button.callback, &plugin.storage).await {
+                        Ok(_) => {
+                            Json(ResponseCallbackPlugins {
+                                message: None,
+                                status: models_response::ResponseCallbackPluginStatus::Successfully
+                            })
+                        }
+                        Err(e) => {
+                            Json(ResponseCallbackPlugins {
+                                message: Some(format!("The callback caused an error: {}", e)),
+                                status: models_response::ResponseCallbackPluginStatus::Error
+                            })
+                        }
+                    }
                 }
             }
             if let Some(inputs)=menu.input && plugin_callback.callback_type == "input".to_string(){
                 if let Some(input) = inputs.get(plugin_callback.callback_id as usize).clone() {
                     if let Some(value) = plugin_callback.data{
                         let value = value.clone();
-                        let _=python::run_hook_input(&input.callback, (value,), &plugin.storage).await.unwrap();
+                        return match python::run_hook_input(&input.callback, (value,), &plugin.storage).await {
+                            Ok(s) => {
+                                if s.is_empty() {
+                                    Json(ResponseCallbackPlugins {
+                                        message: Some("Successful callback(no message)".to_string()),
+                                        status: models_response::ResponseCallbackPluginStatus::Warning
+                                    })
+                                } else {
+                                    Json(ResponseCallbackPlugins {
+                                        message: Some(s),
+                                        status: models_response::ResponseCallbackPluginStatus::Successfully
+                                    })
+                                }
+                            }
+                            Err(_) => {
+                                Json(ResponseCallbackPlugins {
+                                    message: Some("The callback completed its work with an error".to_string()),
+                                    status: models_response::ResponseCallbackPluginStatus::Error
+                                })
+                            }
+                        }
+
                     }
 
                 }
             }
         }
     }
+    return Json(ResponseCallbackPlugins{
+        message: Some("Callback not find".to_string()),
+        status: models_response::ResponseCallbackPluginStatus::Error
+    })
 }
 
 
@@ -102,4 +141,3 @@ pub async fn list_plugins(StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>)
         result
     )
 }
-
