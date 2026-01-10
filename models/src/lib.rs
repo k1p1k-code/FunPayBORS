@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use serde::Serialize;
 use pyo3::{prelude::*};
+use rand::Rng;
 
 pub struct Plugin {
     #[warn(unused_variables)]
@@ -51,14 +52,26 @@ pub enum State {
 
 pub struct AppState {
     pub app_state: State,
-    pub plugins: Arc<Mutex<Vec<Plugin>>>
+    pub plugins: Arc<Mutex<Vec<Plugin>>>,
+    pub api_key: String,
 }
 
 impl AppState {
     pub fn new(plugins: Arc<Mutex<Vec<Plugin>>>) -> AppState {
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                            abcdefghijklmnopqrstuvwxyz";
+        const STR_LEN: usize = 20;
+        let mut rng = rand::rng();
+        let api_key: String = (0..STR_LEN)
+            .map(|_| {
+                let idx = rng.random_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
         AppState {
             app_state: State::DEFAULT,
-            plugins
+            plugins,
+            api_key,
         }
     }
 }

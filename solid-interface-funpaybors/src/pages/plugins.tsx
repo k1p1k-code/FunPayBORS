@@ -1,4 +1,5 @@
 import { createSignal, onMount, Show, For } from 'solid-js';
+import { createApiSession } from '../app';
 
 interface Button {
   value: string;
@@ -40,6 +41,7 @@ export default function Plugins() {
   const [inputValues, setInputValues] = createSignal<Record<number, string>>({});
 
   const API_BASE = 'http://127.0.0.1:58899';
+  const api = createApiSession();
 
   const fetchPlugins = async () => {
     setLoading(true);
@@ -47,7 +49,7 @@ export default function Plugins() {
     setResultMessage(null);
     
     try {
-      const response = await fetch(`${API_BASE}/plugins/list`);
+      const response = await api.get(`${API_BASE}/plugins/list`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -71,7 +73,6 @@ export default function Plugins() {
     }
   };
 
-
   const handleButtonClick = async (button: Button, pluginName: string) => {
     setResultMessage(null);
     
@@ -83,7 +84,6 @@ export default function Plugins() {
 
     await executeCallback(requestData, button.callback_id);
   };
-
 
   const handleInputButtonClick = async (input: Input, pluginName: string) => {
     setResultMessage(null);
@@ -106,14 +106,7 @@ export default function Plugins() {
       
       console.log('Sending request:', requestData);
       
-      const response = await fetch(`${API_BASE}/plugins/callback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
+      const response = await api.post(`${API_BASE}/plugins/callback`, requestData);
       
       let result: any;
       

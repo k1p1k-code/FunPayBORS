@@ -115,10 +115,9 @@ async fn main() -> Result<(), FunPayError> {
     });
 
     if args_option.server.is_some() {
-        #[warn(unused)]
+        println!("Your api key: {}", app_state.clone().lock().await.api_key);
         let router = server::build_router(app_state).await;
         let listener_server = TcpListener::bind("127.0.0.1:58899").await?;
-
         let _server_handle = tokio::spawn(async move {
             println!("Server start on 127.0.0.1:58899");
             if let Err(e) = axum::serve(listener_server, router).await {
