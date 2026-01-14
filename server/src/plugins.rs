@@ -1,23 +1,133 @@
 use crate::{models_response, models_reqwest};
 use std::sync::Arc;
 use python_plugins::utils as python;
-use models::{AppState, State};
-use tokio::sync::Mutex;
+use models::{AppState, EventServer};
+use tokio::{
+    sync::{Mutex, mpsc::Sender},
+};
 use axum::{
     extract::State as StateAxum,
-    Json,
-};
-use crate::models_response::ResponseCallbackPlugins;
+    Json
 
-pub async fn reload_plugins(StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>){
-    let mut h = app_state.lock().await;
-    h.app_state = State::RELOAD;
+};
+use axum::extract::Multipart;
+use crate::models_response::{ResponsePlugins, ResponsePluginStatus};
+use async_zip::tokio::read::seek::ZipFileReader;
+use std::io::Cursor;
+use python_plugins::{install_plugin, delete_plugin};
+
+
+pub async fn delete_plugin_web(
+    StateAxum(tx): StateAxum<Sender<EventServer>>,
+    Json(plugin_delete): Json<models_reqwest::DeletePlugin>,
+) -> Json<ResponsePlugins>{
+    match delete_plugin(plugin_delete.name){
+        Ok(_) => {}
+        Err(e) => {
+            return Json(ResponsePlugins{
+                message: Some(e.to_string()),
+                status: ResponsePluginStatus::Error
+            })
+        }
+    }
+    reload_plugins(StateAxum(tx.into())).await
+}
+
+pub async fn install_plugin_web(
+    StateAxum(tx): StateAxum<Sender<EventServer>>,
+    mut multipart: Multipart,
+) -> Json<ResponsePlugins> {
+    let mut file_byte: Option<Vec<u8>> = None;
+    let mut plugin_name: Option<String> = None;
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let field_name = field.name().unwrap_or("").to_string();
+        if field_name == "file" || field.file_name().is_some() {
+            if let Some(s) = field.file_name() {
+                plugin_name = Some(s.to_string()[0..(s.len()-4)].to_string());
+                if s.is_empty() {
+                    return Json(ResponsePlugins {
+                        message: Some("".to_string()),
+                        status: ResponsePluginStatus::Error
+                    });
+                }
+            }
+            file_byte = Some(field.bytes().await.unwrap().to_vec());
+            break;
+        }
+    }
+    let file_byte = file_byte.unwrap();
+    let plugin_name = plugin_name.unwrap();
+    let cursor = Cursor::new(file_byte.clone());
+    let zip_plugin= match ZipFileReader::with_tokio(cursor).await{
+        Ok(zip) => zip,
+        Err(_) => {
+            return Json(ResponsePlugins {
+                message: Some("Error unzip file".to_string()),
+                status: ResponsePluginStatus::Error
+            })}
+
+    };
+
+
+    let mut is_file_plugin=false;
+    let mut is_file_requirements=false;
+
+    for i in zip_plugin.file().entries().iter(){
+
+        let data=i.filename().as_str().unwrap().split('/').collect::<Vec<&str>>();
+        if let Some(file) = data.get(1){
+            if *file == "plugin.py"{
+                is_file_plugin=true;
+            }
+            if *file == "requirements.txt"{
+                is_file_requirements=true;
+            }
+        }
+
+    }
+
+    if !is_file_plugin | !is_file_requirements{
+        return Json(ResponsePlugins {
+            message: Some("The file requirements.txt not found".to_string()),
+            status: ResponsePluginStatus::Error
+        })
+    }
+
+    match install_plugin(file_byte, plugin_name){
+        Ok(_) => {
+            reload_plugins(StateAxum(tx.into())).await
+        }
+        Err(e) => {
+            Json(ResponsePlugins {
+                message: Some(format!("Failed installation, error: {}", e)),
+                status: ResponsePluginStatus::Error
+            })
+
+            }
+    }
+
+
+}
+
+pub async fn reload_plugins(StateAxum(tx): StateAxum<Sender<EventServer>>) -> Json<ResponsePlugins> {
+    match tx.send(EventServer::ReloadPlugins).await {
+        Ok(_) => Json(ResponsePlugins{
+            message: Some("Successfully send signal reload, wait please".to_string()),
+            status: ResponsePluginStatus::Successfully
+        }),
+        Err(e) => { Json(ResponsePlugins {
+                message: Some(format!("Failed send signal reload: {}", e)),
+                status: ResponsePluginStatus::Error
+            })
+        },
+    }
+
 }
 
 
 pub async fn callback_plugin(
     StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>,
-    Json(plugin_callback): Json<models_reqwest::CallbackMenuPlugin>) -> Json<ResponseCallbackPlugins>{
+    Json(plugin_callback): Json<models_reqwest::CallbackMenuPlugin>) -> Json<ResponsePlugins>{
     let h=app_state.lock().await;
     let plugins=h.plugins.lock().await;
     let mut plugin_check=None;
@@ -35,15 +145,15 @@ pub async fn callback_plugin(
                 if let Some(button  ) = buttons.get(plugin_callback.callback_id as usize).clone() {
                     return match python::run_hook_no_args(&button.callback, &plugin.storage).await {
                         Ok(_) => {
-                            Json(ResponseCallbackPlugins {
+                            Json(ResponsePlugins {
                                 message: None,
-                                status: models_response::ResponseCallbackPluginStatus::Successfully
+                                status: ResponsePluginStatus::Successfully
                             })
                         }
                         Err(e) => {
-                            Json(ResponseCallbackPlugins {
+                            Json(ResponsePlugins {
                                 message: Some(format!("The callback caused an error: {}", e)),
-                                status: models_response::ResponseCallbackPluginStatus::Error
+                                status: ResponsePluginStatus::Error
                             })
                         }
                     }
@@ -56,21 +166,21 @@ pub async fn callback_plugin(
                         return match python::run_hook_input(&input.callback, (value,), &plugin.storage).await {
                             Ok(s) => {
                                 if s.is_empty() {
-                                    Json(ResponseCallbackPlugins {
+                                    Json(ResponsePlugins {
                                         message: Some("Successful callback(no message)".to_string()),
-                                        status: models_response::ResponseCallbackPluginStatus::Warning
+                                        status: ResponsePluginStatus::Warning
                                     })
                                 } else {
-                                    Json(ResponseCallbackPlugins {
+                                    Json(ResponsePlugins {
                                         message: Some(s),
-                                        status: models_response::ResponseCallbackPluginStatus::Successfully
+                                        status: ResponsePluginStatus::Successfully
                                     })
                                 }
                             }
                             Err(_) => {
-                                Json(ResponseCallbackPlugins {
+                                Json(ResponsePlugins {
                                     message: Some("The callback completed its work with an error".to_string()),
-                                    status: models_response::ResponseCallbackPluginStatus::Error
+                                    status: ResponsePluginStatus::Error
                                 })
                             }
                         }
@@ -81,9 +191,9 @@ pub async fn callback_plugin(
             }
         }
     }
-    return Json(ResponseCallbackPlugins{
+    return Json(ResponsePlugins{
         message: Some("Callback not find".to_string()),
-        status: models_response::ResponseCallbackPluginStatus::Error
+        status: ResponsePluginStatus::Error
     })
 }
 
@@ -96,6 +206,16 @@ pub async fn list_plugins(StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>)
         let mut texts: Vec<String> = vec![];
         let mut buttons: Vec<models_response::ButtonOption> = vec![];
         let mut inputs: Vec<models_response::InputOption> = vec![];
+        if let Some(error_py) = &i.error{
+            result.push(models_response::ResponseListPlugins{
+                name: i.name.clone(),
+                error: Some(error_py.clone()),
+                texts,
+                buttons,    
+                inputs
+            });
+            continue;
+        }
         if let Some(menu) = &i.build_menu{
             let menu=python::run_menu_build(menu).await.expect(format!("cannot build menu in {}", i.name.to_string()).as_str());
             if let Some(text) = menu.text{
@@ -132,6 +252,7 @@ pub async fn list_plugins(StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>)
 
         result.push(models_response::ResponseListPlugins{
             name: i.name.clone(),
+            error: None,
             texts,
             buttons,
             inputs

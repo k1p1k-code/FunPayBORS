@@ -1,4 +1,7 @@
+
+mod management;
 pub mod utils;
+pub use management::{install_plugin, delete_plugin};
 
 use pyo3::types::PyDict;
 use pyo3::{IntoPyObjectExt, prelude::*};
@@ -7,6 +10,9 @@ use std::fs;
 use std::path::PathBuf;
 use models::Plugin;
 
+mod models_plugins;
+pub use models_plugins::ErrorPlugins;
+
 
 #[derive(Debug)]
 pub struct InfoPlugin {
@@ -14,7 +20,9 @@ pub struct InfoPlugin {
     path_plugin: PathBuf,
 }
 
-fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
+
+fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
+
     Python::attach(|py| {
         let plugin_dir = info_plugin
             .path_plugin
@@ -66,10 +74,20 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
             info_plugin.path_plugin
         ));
 
-        py.run(&c_plugin_code, None, Some(&locals)).expect(&format!(
-            "Failed to run plugin: {:?}",
-            info_plugin.path_plugin
-        ));
+        match py.run(&c_plugin_code, None, Some(&locals)){
+            Ok(_) => (),
+            Err(err) => {
+                return Plugin {
+                    name: info_plugin.name,
+                    error: Some(err.to_string()),
+                    storage: None,
+                    build_menu: None,
+                    message_hook: None,
+                    order_hook: None,
+                    order_status_changed: None,
+                }
+            }
+        }
 
         let storage: Option<Py<PyAny>> = match locals.get_item("storage") {
             Ok(s) => {
@@ -116,9 +134,10 @@ fn extruct_plugin(info_plugin: InfoPlugin) -> Plugin {
         load.call0().expect("Failed to call load method");
 
         Plugin {
+            name: info_plugin.name,
+            error: None,
             storage,
             build_menu,
-            name: info_plugin.name,
             message_hook,
             order_hook,
             order_status_changed,
@@ -139,7 +158,10 @@ pub fn loader_plugins() -> Result<Vec<Plugin>, String> {
     }
 
     if !path_venv.exists() {
-        Err("Warning: \"/plugins/venv\" directory does not exist, use global interpreter.")?
+        match management::create_venv(&path_venv){
+            Ok(_) => {}
+            Err(_) => return Err("Failed to install VIRTUAL_ENV.".to_string()),
+        }
     }
 
     let entries = fs::read_dir(&path_plugins).expect("Failed to read plugins directory");
@@ -153,7 +175,7 @@ pub fn loader_plugins() -> Result<Vec<Plugin>, String> {
             if !path_plugin.exists() {
                 Err(format!("Plugin file not exist {:?}", path_plugin))?
             }
-            let plugin = extruct_plugin(InfoPlugin {
+            let plugin = extract_plugin(InfoPlugin {
                 path_plugin: entry.path().join("plugin.py"),
                 name: plugin_name,
             });

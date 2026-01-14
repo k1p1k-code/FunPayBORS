@@ -7,6 +7,7 @@ use rand::Rng;
 pub struct Plugin {
     #[warn(unused_variables)]
     pub name: String,
+    pub error: Option<String>,
     pub storage: Option<Py<PyAny>>,
     pub build_menu: Option<Py<PyAny>>,
     pub message_hook: Option<Py<PyAny>>,
@@ -45,13 +46,11 @@ pub struct FPMe {
 }
 
 #[derive(Debug)]
-pub enum State {
-    RELOAD,
-    DEFAULT,
+pub enum EventServer {
+    ReloadPlugins,
 }
 
 pub struct AppState {
-    pub app_state: State,
     pub plugins: Arc<Mutex<Vec<Plugin>>>,
     pub api_key: String,
 }
@@ -69,7 +68,6 @@ impl AppState {
             })
             .collect();
         AppState {
-            app_state: State::DEFAULT,
             plugins,
             api_key,
         }

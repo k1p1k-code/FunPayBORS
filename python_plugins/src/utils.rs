@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use std::sync::Arc;
 use models::{PluginMenu};
 
+
 async fn call_hook(
     py_func: Py<PyAny>,
     args: (Arc<String>, Arc<String>),
@@ -32,8 +33,8 @@ pub async fn run_hook(
     args: (Arc<String>, Arc<String>),
     storage: &Option<Py<PyAny>>,
 ) -> PyResult<bool> {
-    pyo3::Python::initialize();
 
+    pyo3::Python::initialize();
     Python::attach(|py| {
         let hook_clone = hook.clone_ref(py);
 

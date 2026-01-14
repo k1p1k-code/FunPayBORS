@@ -35,22 +35,27 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 
 ## Запуск
 1. Скачайте [последний релиз](https://github.com/k1p1k-code/FunPayBORS/releases/latest)
-2. Установите [Python](https://python.org)
+2. Установите [Python](https://python.org) 3.13.3
 3. Распакуйте в отдельную папку
-4. Убедитесь то что FunPayBORS_64x.exe лежит рядом с config.json и папкой plugins
+4. Убедитесь то что FunPayBORS_64x.exe лежит рядом с config.json, папкой plugins и html
 5. Зайдите в командную строку с этой директорией 
 6. Пропишите: ```⁡FunPayBORS_64x.exe -gk {golden_key}```
 
 ## Билд
 1. Скачайте source code 
-2. Установите [Rust](https://rust-lang.org/)
-3. Установите [Python](https://python.org)
-4. Откройте командную строку с директорией где лежит Cargo.toml
-5. Пропишите ```cargo build --release```
-6. Создайте отдельную папку 
-7. Скопируйте /target/release/FunPayBORS.exe в новую папку
-8. Скопируйте или создайте /config.json в новую папку
-9. Создайте в новой папке папку plugins
+2. Установите [Rust](https://rust-lang.org/) 
+3. Установите [Python](https://python.org) 3.13.3
+4. Установите [NodeJS](https://nodejs.org/en) 24.12.0
+5. Откройте командную строку с директорией где лежит ```Cargo.toml```
+6. Пропишите ```cargo build --release```
+7. Создайте отдельную папку 
+8. Скопируйте /target/release/FunPayBORS.exe в новую папку
+9. Скопируйте или создайте /config.json в новую папку
+10. Создайте в новой папке папку ```plugins```
+11. Создайте в новой папке папку ```html```
+12. Откройте командную строку в ```solid-interface-funpaybors```
+13. Пропишите ```npm run build```
+14. Скопируйте содержимое папки dist в ```html```
 
 ## Помощь
 - Вы можете обратиться в [issues](https://github.com/k1p1k-code/FunPayBORS/issues)

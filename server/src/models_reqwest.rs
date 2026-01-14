@@ -1,6 +1,13 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+pub struct DeletePlugin {
+    pub name: String,
+}
+
+
+
+#[derive(Deserialize)]
 pub struct CallbackMenuPlugin {
     pub name: String,
     pub callback_id: u16,

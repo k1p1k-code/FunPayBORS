@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
-use models::{AppState, State};
+use models::{AppState, EventServer};
 use server;
 use crate::utils::print_project;
 
@@ -32,7 +32,7 @@ async fn main() -> Result<(), FunPayError> {
     }
     print_project();
 
-    let mut plugins_python_sync = Arc::new(Mutex::new(
+    let plugins_python_sync = Arc::new(Mutex::new(
         python_plugins::loader_plugins().unwrap_or_else(|m| {
             println!("{}", m);
             vec![]
@@ -53,30 +53,13 @@ async fn main() -> Result<(), FunPayError> {
     };
 
     let strategies = Strategies::new(args_option.path_config).expect("Error");
-    let mut rx = account.subscribe();
+    let mut rx_fupay = account.subscribe();
     let app_state = Arc::new(Mutex::new(AppState::new(plugins_python_sync.clone())));
 
-    let event_handler_app_state = app_state.clone();
-    let event_handler = tokio::spawn(async move {
-        while let Ok(event) = rx.recv().await {
-            let state = event_handler_app_state.clone();
-            let mut state = state.lock().await;
-            match state.app_state {
-                State::RELOAD => {
-                    println!("---------------\nReloading plugin...");
-                    plugins_python_sync = Arc::new(Mutex::new(
-                        python_plugins::loader_plugins().unwrap_or_else(|m| {
-                            println!("{}", m);
-                            vec![]
-                        })
-                    ));
-
-                    state.app_state = State::DEFAULT;
-                    state.plugins = plugins_python_sync.clone();
-                }
-                State::DEFAULT => {}
-            }
-            let plugins_python= plugins_python_sync.clone();
+    let plugins_python_funpay= plugins_python_sync.clone();
+    let event_handler_funpay = tokio::spawn(async move {
+        while let Ok(event) = rx_fupay.recv().await {
+            let plugins_python_funpay=plugins_python_funpay.clone();
             match event {
                 Event::NewMessage { message } => {
                     handlers::message_handler(
@@ -84,7 +67,7 @@ async fn main() -> Result<(), FunPayError> {
                         &sender,
                         &funpay_me,
                         &strategies,
-                        plugins_python,
+                        plugins_python_funpay,
                     )
                     .await
                 }
@@ -94,7 +77,7 @@ async fn main() -> Result<(), FunPayError> {
                         &sender,
                         &funpay_me,
                         &strategies,
-                        plugins_python,
+                        plugins_python_funpay,
                     )
                     .await
                 }
@@ -104,7 +87,7 @@ async fn main() -> Result<(), FunPayError> {
                         &sender,
                         &funpay_me,
                         &strategies,
-                        plugins_python,
+                        plugins_python_funpay,
                     )
                     .await
                 }
@@ -113,17 +96,40 @@ async fn main() -> Result<(), FunPayError> {
         }
     });
 
+
+
     if args_option.server.is_some() {
         println!("Your api key: {}", app_state.clone().lock().await.api_key);
-        let router = server::build_router(app_state).await;
+        let (router, mut server_rx) = server::build_router(app_state).await;
         let listener_server = TcpListener::bind("127.0.0.1:58899").await?;
-        let _server_handle = tokio::spawn(async move {
+        let _server = tokio::spawn(  async move {
             println!("Server start on 127.0.0.1:58899");
             if let Err(e) = axum::serve(listener_server, router).await {
-                eprintln!("❌ Server error: {}", e);
+                eprintln!("Server error: {}", e);
             }
         });
 
+
+        let _event_handler_server=tokio::spawn(async move {
+            let plugins_python_server=plugins_python_sync.clone();
+            println!("  Server handler run");
+            while let Some(event) = server_rx.recv().await {
+                match event {
+                    EventServer::ReloadPlugins => {
+                        println!("---------------\nReloading plugin...");
+                        let mut python_plugin = plugins_python_server.lock().await;
+                        *python_plugin = python_plugins::loader_plugins().unwrap_or_else(|m| {
+                            println!("{}", m);
+                            vec![]
+                        });
+
+                    }
+
+                }
+            }
+        });
+
+        println!("Launch is successful");
         tokio::select! {
 
             result = account.start_polling_loop() => {
@@ -131,13 +137,16 @@ async fn main() -> Result<(), FunPayError> {
                     eprintln!("Polling loop error: {}", e);
                 }
             }
+
+
             else => {
                 println!("All tasks completed");
             }
         }
     } else {
+        println!("Launch is successful");
         tokio::select! {
-            _ = event_handler => {
+            _ = event_handler_funpay => {
                 println!("FunPay event handler stopped");
             }
             result = account.start_polling_loop() => {
@@ -150,5 +159,6 @@ async fn main() -> Result<(), FunPayError> {
             }
         }
     }
+
     Ok(())
 }

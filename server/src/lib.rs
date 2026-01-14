@@ -1,9 +1,11 @@
 mod models_response;
 mod models_reqwest;
 mod plugins;
+
+
 use std::sync::Arc;
-use models::AppState;
-use tokio::sync::Mutex;
+use models::{AppState, EventServer};
+use tokio::sync::{Mutex, mpsc};
 use axum::{
     Router,
     extract::State as StateAxum,
@@ -18,7 +20,8 @@ use tower_http::{
     services::ServeDir,
 };
 use tower::ServiceBuilder;
-use plugins::{ list_plugins, reload_plugins, callback_plugin};
+use plugins::{ list_plugins, reload_plugins, callback_plugin, install_plugin_web, delete_plugin_web};
+
 
 async fn check_panel_key(
     StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>,
@@ -39,7 +42,9 @@ async fn check_panel_key(
 //Слой проверяет
 pub async fn pass_check(StateAxum(_app_state): StateAxum<Arc<Mutex<AppState>>>){}
 
-pub async fn build_router(app_state: Arc<Mutex<AppState>>) -> Router {
+pub async fn build_router(app_state: Arc<Mutex<AppState>>) -> (Router, mpsc::Receiver<EventServer>) {
+    let (tx, rx) = mpsc::channel::<EventServer>(100);
+
     let cors_layer = CorsLayer::new()
         .allow_origin(Any)
         .allow_headers(Any)
@@ -54,15 +59,21 @@ pub async fn build_router(app_state: Arc<Mutex<AppState>>) -> Router {
     let static_files = ServeDir::new("html")
         .append_index_html_on_directories(true);
 
-    Router::new()
+    let app=Router::new()
+        .route("/plugins/installation", post(install_plugin_web))
+        .route("/plugins/delete", post(delete_plugin_web))
+        .route("/plugins/reload", post(reload_plugins))
+        .with_state(tx)
+
         .route("/plugins/callback", post(callback_plugin))
         .route("/plugins/list", get(list_plugins))
-        .route("/plugins/reload", post(reload_plugins))
         .route("/login", post(pass_check))
         .layer(middleware::from_fn_with_state(app_state.clone(), check_panel_key))
         .with_state(app_state)
         .fallback_service(static_files)
-        .layer(ServiceBuilder::new().layer(cors_layer))
+        .layer(ServiceBuilder::new().layer(cors_layer));
+
+    (app, rx)
 
 
 }
