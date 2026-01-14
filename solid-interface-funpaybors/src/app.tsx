@@ -1,4 +1,4 @@
-import { Suspense, type Component, Show, createEffect, onCleanup } from 'solid-js';
+import { Suspense, type Component, Show, createEffect, onCleanup, type JSX } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
 import { createSignal } from 'solid-js';
 
@@ -55,6 +55,55 @@ export function createApiSession() {
         method: 'PATCH',
         body: JSON.stringify(data)
       });
+    },
+
+    upload: async (
+      url: string, 
+      formData: FormData, 
+      options: RequestInit = {}
+    ): Promise<Response> => {
+
+      const { headers: originalHeaders, ...restOptions } = options;
+      const headers = new Headers(originalHeaders as HeadersInit);
+      
+
+      if (headers.has('Content-Type')) {
+        headers.delete('Content-Type');
+      }
+      
+      return fetchWithKey(url, {
+        ...restOptions,
+        method: 'POST',
+        body: formData,
+        headers
+      });
+    },
+
+    uploadFiles: async (
+      url: string,
+      files: File[] | File,
+      fields: Record<string, any> = {},
+      options: RequestInit = {}
+    ): Promise<Response> => {
+      const formData = new FormData();
+      
+
+      if (Array.isArray(files)) {
+        files.forEach((file, index) => {
+          formData.append(`files`, file);
+        });
+      } else {
+        formData.append('file', files);
+      }
+      
+
+      Object.entries(fields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, String(value));
+        }
+      });
+      
+      return session.upload(url, formData, options);
     }
   };
 
@@ -62,19 +111,44 @@ export function createApiSession() {
 }
 
 async function fetchWithKey(url: string, options: RequestInit = {}): Promise<Response> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {})
-  };
+  const headers = new Headers(options.headers as HeadersInit || {});
+  
 
   if (apiKey) {
-    headers['X-Panel-Key'] = apiKey;
+    headers.set('X-Panel-Key', apiKey);
   }
-
-  return fetch(url, {
+  
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+  
+  const response = await fetch(url, {
     ...options,
     headers
   });
+  
+  return response;
+}
+
+
+export function createFormData(files: File[] | File, data?: Record<string, any>): FormData {
+  const formData = new FormData();
+  
+  if (Array.isArray(files)) {
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+  } else {
+    formData.append('file', files);
+  }
+  
+  if (data) {
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+  }
+  
+  return formData;
 }
 
 interface LoginFormProps {
@@ -156,11 +230,10 @@ function LoginForm(props: LoginFormProps) {
   );
 }
 
-const App: Component<{ children: Element }> = (props) => {
+const App: Component<{ children: JSX.Element }> = (props) => {
   const location = useLocation();
-  
   const [loggedIn, setLoggedIn] = createSignal(false);
-  const [checking, setChecking] = createSignal(false);
+  const [initialCheckDone, setInitialCheckDone] = createSignal(false);
   
   const checkKey = async (key: string): Promise<boolean> => {
     try {
@@ -179,43 +252,20 @@ const App: Component<{ children: Element }> = (props) => {
     }
   };
   
-  const startCheckInterval = () => {
-    const interval = setInterval(async () => {
-      const savedKey = localStorage.getItem('panel-key');
-      if (savedKey) {
-        setChecking(true);
-        const isValid = await checkKey(savedKey);
-        setChecking(false);
-        if (!isValid) {
-          localStorage.removeItem('panel-key');
-          apiKey = '';
-          setLoggedIn(false);
-          clearInterval(interval);
-        }
-      }
-    }, 10000);
-    
-    onCleanup(() => {
-      clearInterval(interval);
-    });
-  };
-  
   createEffect(async () => {
     const savedKey = localStorage.getItem('panel-key');
     if (savedKey) {
-      setChecking(true);
       const isValid = await checkKey(savedKey);
-      setChecking(false);
       if (isValid) {
         apiKey = savedKey;
         setLoggedIn(true);
-        startCheckInterval();
       } else {
         localStorage.removeItem('panel-key');
         apiKey = '';
         setLoggedIn(false);
       }
     }
+    setInitialCheckDone(true);
   });
 
   const handleLogin = () => {
@@ -223,35 +273,43 @@ const App: Component<{ children: Element }> = (props) => {
     if (savedKey) {
       apiKey = savedKey;
       setLoggedIn(true);
-      startCheckInterval();
     }
   };
 
   return (
-    <Show when={!checking() && loggedIn()} fallback={<LoginForm onLogin={handleLogin} />}>
-      <nav class="bg-gray-200 text-gray-900 px-4">
-        <ul class="flex items-center">
-          <li class="py-2 px-4">
-            <A href="/plugins" class="no-underline hover:underline">
-              Plugins
-            </A>
-          </li>
-          <li class="py-2 px-4">
-            <A href="/nofication" class="no-underline hover:underline">
-              Nofication
-            </A>
-          </li>
-          <li class="py-2 px-4">
-            <A href="/error" class="no-underline hover:underline">
-              Error
-            </A>
-          </li>
-        </ul>
-      </nav>
+    <Show 
+      when={initialCheckDone()} 
+      fallback={
+        <div class="min-h-screen flex items-center justify-center">
+          <div>Loading...</div>
+        </div>
+      }
+    >
+      <Show when={loggedIn()} fallback={<LoginForm onLogin={handleLogin} />}>
+        <nav class="bg-gray-200 text-gray-900 px-4">
+          <ul class="flex items-center">
+            <li class="py-2 px-4">
+              <A href="/plugins" class="no-underline hover:underline">
+                Plugins
+              </A>
+            </li>
+            <li class="py-2 px-4">
+              <A href="/nofication" class="no-underline hover:underline">
+                Nofication
+              </A>
+            </li>
+            <li class="py-2 px-4">
+              <A href="/error" class="no-underline hover:underline">
+                Error
+              </A>
+            </li>
+          </ul>
+        </nav>
 
-      <main>
-        <Suspense>{props.children}</Suspense>
-      </main>
+        <main>
+          <Suspense>{props.children}</Suspense>
+        </main>
+      </Show>
     </Show>
   );
 };
