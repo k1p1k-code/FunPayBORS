@@ -41,7 +41,7 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
   3. Распакуйте в отдельную папку
   4. Убедитесь то что FunPayBORS_64x.exe лежит рядом с config.json, папкой plugins и html
   5. Зайдите в командную строку с этой директорией 
-  6. Пропишите: ```⁡FunPayBORS_64x.exe -gk {golden_key}```
+  6. Пропишите: ```⁡FunPayBORS_64x.exe -gk {golden_key} --server```
 
 
 ### Linux:
