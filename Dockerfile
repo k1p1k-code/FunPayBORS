@@ -2,48 +2,53 @@ FROM rust:1.92.0 AS rust-builder
 
 RUN apt-get update && apt-get install -y \
     python3.13 \
-    python3.13-venv \
     python3.13-dev \
-    libpython3.13-dev \
+    python3.13-venv \
     pkg-config \
+    libpython3.13 \
     && rm -rf /var/lib/apt/lists/*
-
-RUN ln -sf /usr/bin/python3.13 /usr/bin/python \
-    && ln -sf /usr/bin/python3.13 /usr/bin/python3
 
 ENV PYO3_PYTHON=/usr/bin/python3.13
 
 WORKDIR /usr/src/app
+
 COPY . .
-RUN cargo build --release
+
+RUN cargo build --release && \
+    strip target/release/FunPayBORS && \
+    rm -rf /usr/local/cargo/registry target/release/build target/release/deps target/release/.fingerprint
+
+COPY . .
+
+RUN cargo build --release && \
+    strip target/release/FunPayBORS && \
+    rm -rf /usr/local/cargo/registry target/release/build target/release/deps target/release/.fingerprint
 
 FROM node:20-alpine AS node-builder
 WORKDIR /app
+COPY solid-interface-funpaybors/package*.json ./
+RUN npm ci
 COPY solid-interface-funpaybors/ .
-RUN npm ci && npm run build
+RUN npm run build
 
-FROM debian:trixie-slim
+FROM alpine:3.19
 
-# Установка ПОЛНОГО Python 3.13
-RUN apt-get update && apt-get install -y \
-    python3.13 \
-    python3.13-dev \
-    python3.13-venv \
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && ln -sf python3 /usr/bin/python
 
-RUN ln -sf /usr/bin/python3.13 /usr/bin/python \
-    && ln -sf /usr/bin/python3.13 /usr/bin/python3 \
-    && ldconfig
+RUN adduser -D -u 1000 appuser
+USER appuser
 
-RUN mkdir -p /app/plugins /app/html
+WORKDIR /app
+RUN mkdir -p plugins html
+
 COPY --from=rust-builder /usr/src/app/target/release/FunPayBORS /app/
 COPY --from=rust-builder /usr/src/app/config.json /app/
 COPY --from=node-builder /app/dist/ /app/html/
 
-WORKDIR /app
 EXPOSE 58899
-
-
 ENTRYPOINT ["./FunPayBORS"]
 CMD ["--server"]
