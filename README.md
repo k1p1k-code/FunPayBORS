@@ -34,7 +34,7 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 - Простое изменение шаблонов
 
 ## Запуск
-## Windows
+### Windows
   
   1. Скачайте [последний релиз](https://github.com/k1p1k-code/FunPayBORS/releases/latest)
   2. Установите [Python](https://python.org) 3.13.3
@@ -44,7 +44,7 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
   6. Пропишите: ```⁡FunPayBORS_64x.exe -gk {golden_key}```
 
 
-## Linux:
+### Linux:
   ``` bash
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/k1p1k-code/FunPayBORS/master/install-with-docker.sh)"
   ```
