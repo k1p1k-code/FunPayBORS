@@ -1,4 +1,4 @@
-FROM rust:latest AS rust-builder
+FROM rust:1.92.0 AS rust-builder
 
 RUN apt-get update && apt-get install -y \
     python3.13 \
