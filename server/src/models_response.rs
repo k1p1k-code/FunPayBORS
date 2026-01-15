@@ -1,6 +1,19 @@
 use serde::{Serialize};
 
 #[derive(Serialize, Debug)]
+pub enum ResponseStatus{
+    Error,
+    Warning,
+    Successfully
+}
+#[derive(Serialize, Debug)]
+pub struct Response{
+    pub message: Option<String>,
+    pub status: ResponseStatus,
+}
+
+
+#[derive(Serialize, Debug)]
 pub struct ButtonOption{
     pub value: String,
     pub callback_id: u16,
@@ -21,14 +34,3 @@ pub struct ResponseListPlugins{
     pub inputs: Vec<InputOption>,
 }
 
-#[derive(Serialize, Debug)]
-pub enum ResponsePluginStatus{
-    Error,
-    Warning,
-    Successfully
-}
-#[derive(Serialize, Debug)]
-pub struct ResponsePlugins{
-    pub message: Option<String>,
-    pub status: ResponsePluginStatus,
-}

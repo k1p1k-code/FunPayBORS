@@ -294,15 +294,15 @@ const App: Component<{ children: JSX.Element }> = (props) => {
               </A>
             </li>
             <li class="py-2 px-4">
-              <A href="/nofication" class="no-underline hover:underline">
-                Nofication
+              <A href="/messages" class="no-underline hover:underline">
+                Messages
               </A>
             </li>
-            <li class="py-2 px-4">
+            {/* <li class="py-2 px-4">
               <A href="/error" class="no-underline hover:underline">
                 Error
               </A>
-            </li>
+            </li> */}
           </ul>
         </nav>
 

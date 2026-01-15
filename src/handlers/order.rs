@@ -1,5 +1,5 @@
 use models::{FPMe, Plugin};
-use crate::strategy::Strategies;
+use models::strategy::Strategies;
 use python_plugins::utils::run_hook;
 use crate::utils::*;
 use funpay_client::models::OrderShortcut;

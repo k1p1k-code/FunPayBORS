@@ -11,7 +11,7 @@ use axum::{
 
 };
 use axum::extract::Multipart;
-use crate::models_response::{ResponsePlugins, ResponsePluginStatus};
+use crate::models_response::{ResponseStatus, Response};
 use async_zip::tokio::read::seek::ZipFileReader;
 use std::io::Cursor;
 use python_plugins::{install_plugin, delete_plugin};
@@ -20,13 +20,13 @@ use python_plugins::{install_plugin, delete_plugin};
 pub async fn delete_plugin_web(
     StateAxum(tx): StateAxum<Sender<EventServer>>,
     Json(plugin_delete): Json<models_reqwest::DeletePlugin>,
-) -> Json<ResponsePlugins>{
+) -> Json<Response>{
     match delete_plugin(plugin_delete.name){
         Ok(_) => {}
         Err(e) => {
-            return Json(ResponsePlugins{
+            return Json(Response{
                 message: Some(e.to_string()),
-                status: ResponsePluginStatus::Error
+                status: ResponseStatus::Error
             })
         }
     }
@@ -36,7 +36,7 @@ pub async fn delete_plugin_web(
 pub async fn install_plugin_web(
     StateAxum(tx): StateAxum<Sender<EventServer>>,
     mut multipart: Multipart,
-) -> Json<ResponsePlugins> {
+) -> Json<Response> {
     let mut file_byte: Option<Vec<u8>> = None;
     let mut plugin_name: Option<String> = None;
     while let Some(field) = multipart.next_field().await.unwrap() {
@@ -45,9 +45,9 @@ pub async fn install_plugin_web(
             if let Some(s) = field.file_name() {
                 plugin_name = Some(s.to_string()[0..(s.len()-4)].to_string());
                 if s.is_empty() {
-                    return Json(ResponsePlugins {
+                    return Json(Response {
                         message: Some("".to_string()),
-                        status: ResponsePluginStatus::Error
+                        status: ResponseStatus::Error
                     });
                 }
             }
@@ -61,9 +61,9 @@ pub async fn install_plugin_web(
     let zip_plugin= match ZipFileReader::with_tokio(cursor).await{
         Ok(zip) => zip,
         Err(_) => {
-            return Json(ResponsePlugins {
+            return Json(Response {
                 message: Some("Error unzip file".to_string()),
-                status: ResponsePluginStatus::Error
+                status: ResponseStatus::Error
             })}
 
     };
@@ -87,9 +87,9 @@ pub async fn install_plugin_web(
     }
 
     if !is_file_plugin | !is_file_requirements{
-        return Json(ResponsePlugins {
+        return Json(Response {
             message: Some("The file requirements.txt not found".to_string()),
-            status: ResponsePluginStatus::Error
+            status: ResponseStatus::Error
         })
     }
 
@@ -98,9 +98,9 @@ pub async fn install_plugin_web(
             reload_plugins(StateAxum(tx.into())).await
         }
         Err(e) => {
-            Json(ResponsePlugins {
+            Json(Response {
                 message: Some(format!("Failed installation, error: {}", e)),
-                status: ResponsePluginStatus::Error
+                status: ResponseStatus::Error
             })
 
             }
@@ -109,15 +109,15 @@ pub async fn install_plugin_web(
 
 }
 
-pub async fn reload_plugins(StateAxum(tx): StateAxum<Sender<EventServer>>) -> Json<ResponsePlugins> {
+pub async fn reload_plugins(StateAxum(tx): StateAxum<Sender<EventServer>>) -> Json<Response> {
     match tx.send(EventServer::ReloadPlugins).await {
-        Ok(_) => Json(ResponsePlugins{
+        Ok(_) => Json(Response{
             message: Some("Successfully send signal reload, wait please".to_string()),
-            status: ResponsePluginStatus::Successfully
+            status: ResponseStatus::Successfully
         }),
-        Err(e) => { Json(ResponsePlugins {
+        Err(e) => { Json(Response {
                 message: Some(format!("Failed send signal reload: {}", e)),
-                status: ResponsePluginStatus::Error
+                status: ResponseStatus::Error
             })
         },
     }
@@ -127,7 +127,7 @@ pub async fn reload_plugins(StateAxum(tx): StateAxum<Sender<EventServer>>) -> Js
 
 pub async fn callback_plugin(
     StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>,
-    Json(plugin_callback): Json<models_reqwest::CallbackMenuPlugin>) -> Json<ResponsePlugins>{
+    Json(plugin_callback): Json<models_reqwest::CallbackMenuPlugin>) -> Json<Response>{
     let h=app_state.lock().await;
     let plugins=h.plugins.lock().await;
     let mut plugin_check=None;
@@ -145,15 +145,15 @@ pub async fn callback_plugin(
                 if let Some(button  ) = buttons.get(plugin_callback.callback_id as usize).clone() {
                     return match python::run_hook_no_args(&button.callback, &plugin.storage).await {
                         Ok(_) => {
-                            Json(ResponsePlugins {
+                            Json(Response {
                                 message: None,
-                                status: ResponsePluginStatus::Successfully
+                                status: ResponseStatus::Successfully
                             })
                         }
                         Err(e) => {
-                            Json(ResponsePlugins {
+                            Json(Response {
                                 message: Some(format!("The callback caused an error: {}", e)),
-                                status: ResponsePluginStatus::Error
+                                status: ResponseStatus::Error
                             })
                         }
                     }
@@ -166,21 +166,21 @@ pub async fn callback_plugin(
                         return match python::run_hook_input(&input.callback, (value,), &plugin.storage).await {
                             Ok(s) => {
                                 if s.is_empty() {
-                                    Json(ResponsePlugins {
+                                    Json(Response {
                                         message: Some("Successful callback(no message)".to_string()),
-                                        status: ResponsePluginStatus::Warning
+                                        status: ResponseStatus::Warning
                                     })
                                 } else {
-                                    Json(ResponsePlugins {
+                                    Json(Response {
                                         message: Some(s),
-                                        status: ResponsePluginStatus::Successfully
+                                        status: ResponseStatus::Successfully
                                     })
                                 }
                             }
                             Err(_) => {
-                                Json(ResponsePlugins {
+                                Json(Response {
                                     message: Some("The callback completed its work with an error".to_string()),
-                                    status: ResponsePluginStatus::Error
+                                    status: ResponseStatus::Error
                                 })
                             }
                         }
@@ -191,9 +191,9 @@ pub async fn callback_plugin(
             }
         }
     }
-    return Json(ResponsePlugins{
+    Json(Response{
         message: Some("Callback not find".to_string()),
-        status: ResponsePluginStatus::Error
+        status: ResponseStatus::Error
     })
 }
 

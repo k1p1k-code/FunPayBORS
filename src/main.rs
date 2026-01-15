@@ -1,35 +1,21 @@
 mod args;
 mod handlers;
 mod utils;
-pub mod strategy;
 
 use args::ArgsOption;
 use funpay_client::events::Event;
 use funpay_client::{FunPayAccount, FunPayError};
-use strategy::Strategies;
-use reqwest;
-use std::process::exit;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
-use models::{AppState, EventServer};
+use models::{AppState, EventServer, strategy::Strategies};
 use server;
 use crate::utils::print_project;
 
 #[tokio::main]
 async fn main() -> Result<(), FunPayError> {
     let args_option = ArgsOption::new();
-    if !args_option.reload.is_none() {
-        let client = reqwest::Client::new();
-        client
-            .post("http://127.0.0.1:58899/plugins/reload")
-            .send()
-            .await
-            .expect("The request was not sent, make sure the application is running with the --server flag.");
-        println!("Wait any event in FunPay");
-        exit(1)
-    }
     print_project();
 
     let plugins_python_sync = Arc::new(Mutex::new(
@@ -52,14 +38,19 @@ async fn main() -> Result<(), FunPayError> {
         golden_key: golden_key.clone(),
     };
 
-    let strategies = Strategies::new(args_option.path_config).expect("Error");
+    let strategies = Arc::new(Mutex::new(Strategies::new(args_option.path_config).expect("Error")));
     let mut rx_fupay = account.subscribe();
-    let app_state = Arc::new(Mutex::new(AppState::new(plugins_python_sync.clone())));
+    let app_state = Arc::new(Mutex::new(AppState::new(
+        plugins_python_sync.clone(),
+        strategies.clone(),
+    )));
 
     let plugins_python_funpay= plugins_python_sync.clone();
+    let strategies_funpay=strategies.clone();
     let event_handler_funpay = tokio::spawn(async move {
         while let Ok(event) = rx_fupay.recv().await {
             let plugins_python_funpay=plugins_python_funpay.clone();
+            let strategies=strategies_funpay.lock().await;
             match event {
                 Event::NewMessage { message } => {
                     handlers::message_handler(

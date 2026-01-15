@@ -69,6 +69,11 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 - Вы можете обратиться в [issues](https://github.com/k1p1k-code/FunPayBORS/issues)
 - Или перейти в [Telegram чат](https://t.me/FunPayBors) где я рад помочь
 
+
+
 ## Понравилось приложение
 Поставь звездочку
 <img width="1234" height="44" alt="image" src="https://github.com/user-attachments/assets/befbc058-5d4d-492e-845d-360bc036c3c4" />
+
+
+# ❤️ **https://t.me/rust_beginners_ru**

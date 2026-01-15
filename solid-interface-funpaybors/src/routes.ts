@@ -13,8 +13,8 @@ export const routes: RouteDefinition[] = [
     component: lazy(() => import('./pages/plugins')),
   },
   {
-    path: '/nofication',
-    component: lazy(() => import('./pages/nofication')),
+    path: '/messages',
+    component: lazy(() => import('./pages/messages')),
   },
   {
     path: '**',

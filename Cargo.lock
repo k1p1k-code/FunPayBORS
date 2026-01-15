@@ -9,10 +9,7 @@ dependencies = [
  "axum",
  "funpay-client",
  "models",
- "parking_lot 0.12.5",
  "python_plugins",
- "reqwest",
- "serde",
  "serde_json",
  "server",
  "tokio",
@@ -1286,9 +1283,11 @@ dependencies = [
 name = "models"
 version = "0.1.0"
 dependencies = [
+ "parking_lot 0.12.5",
  "pyo3",
  "rand 0.10.0-rc.6",
  "serde",
+ "serde_json",
  "tokio",
 ]
 

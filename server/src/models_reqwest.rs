@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use models::strategy::StrategyMessage;
 
 #[derive(Deserialize)]
 pub struct DeletePlugin {
@@ -15,3 +16,8 @@ pub struct CallbackMenuPlugin {
     pub data: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct UpdateAutoReply {
+    pub strategy_text: StrategyMessage,
+    pub id: usize
+}

@@ -3,6 +3,10 @@ use tokio::sync::Mutex;
 use serde::Serialize;
 use pyo3::{prelude::*};
 use rand::Rng;
+use crate::strategy::Strategies;
+
+pub mod strategy;
+
 
 pub struct Plugin {
     #[warn(unused_variables)]
@@ -52,11 +56,14 @@ pub enum EventServer {
 
 pub struct AppState {
     pub plugins: Arc<Mutex<Vec<Plugin>>>,
+    pub strategies: Arc<Mutex<Strategies>>,
     pub api_key: String,
+
 }
 
 impl AppState {
-    pub fn new(plugins: Arc<Mutex<Vec<Plugin>>>) -> AppState {
+    pub fn new(plugins: Arc<Mutex<Vec<Plugin>>>, strategies: Arc<Mutex<Strategies>>) -> AppState {
+
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                             abcdefghijklmnopqrstuvwxyz";
         const STR_LEN: usize = 20;
@@ -69,6 +76,7 @@ impl AppState {
             .collect();
         AppState {
             plugins,
+            strategies,
             api_key,
         }
     }

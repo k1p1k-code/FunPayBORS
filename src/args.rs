@@ -3,7 +3,6 @@ use std::process::exit;
 pub struct ArgsOption {
     pub golden_key: Option<String>,
     pub path_config: Option<String>,
-    pub reload: Option<bool>,
     pub server: Option<bool>,
     pub _is_have: bool,
 }
@@ -12,7 +11,6 @@ impl ArgsOption {
     pub fn new() -> ArgsOption {
         let mut args = std::env::args().skip(1);
         let mut golden_key: Option<String> = None;
-        let mut reload: Option<bool> = None;
         let mut path_config: Option<String> = None;
         let mut server: Option<bool> = None;
         while let Some(arg) = args.next() {
@@ -28,15 +26,8 @@ impl ArgsOption {
                         eprintln!("Warning: --golden_key specified multiple times");
                     }
                 }
-                "--reload" => {
-                    if reload.is_none() {
-                        reload = Some(true);
-                    } else {
-                        eprintln!("Warning: --reload specified multiple times");
-                    }
-                }
                 "--server" => {
-                    if reload.is_none() {
+                    if server.is_none() {
                         server = Some(true);
                     } else {
                         eprintln!("Warning: --server specified multiple times");
@@ -65,13 +56,12 @@ impl ArgsOption {
             }
         }
         let mut _is_have = false;
-        if golden_key.is_some() | reload.is_some() | path_config.is_some() | server.is_some() {
+        if golden_key.is_some() | path_config.is_some() | server.is_some() {
             _is_have = true
         }
 
         ArgsOption {
             golden_key,
-            reload,
             path_config,
             server,
             _is_have,

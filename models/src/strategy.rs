@@ -9,6 +9,12 @@ pub struct StrategyText{
     pub equals: Option<String>
 }
 
+impl PartialEq for StrategyText{
+    fn eq(&self, other: &Self) -> bool {
+        self.key_word == other.key_word && self.equals == other.equals
+    }
+}
+
 impl StrategyText{
     pub fn check(&self, input: &String)->bool{
         let input = input.to_lowercase();
@@ -36,6 +42,14 @@ pub struct StrategyMessage{
     pub strategy_text: StrategyText,
     pub answer: String,
 
+}
+
+impl PartialEq for StrategyMessage{
+    fn eq(&self, other: &StrategyMessage) -> bool{
+        println!("{:?} == {:?}", self.strategy_text, other.strategy_text);
+        println!("{:?} == {:?}", self.answer, other.answer);
+        self.strategy_text == other.strategy_text && self.answer == other.answer
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
