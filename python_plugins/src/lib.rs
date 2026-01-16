@@ -131,7 +131,20 @@ fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
         let load = plugin_instance
             .getattr("load")
             .expect("No \"load\" method in Plugin found");
-        load.call0().expect("Failed to call load method");
+        match load.call0(){
+            Ok(_) => {}
+            Err(err) => {
+                return Plugin {
+                    name: info_plugin.name,
+                    error: Some(err.to_string()),
+                    storage: None,
+                    build_menu: None,
+                    message_hook: None,
+                    order_hook: None,
+                    order_status_changed: None,
+                }
+            }
+        }
 
         Plugin {
             name: info_plugin.name,
