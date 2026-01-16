@@ -1,26 +1,5 @@
 {
-  "message": [
-    {
-      "strategy_text": {
-        "key_word": [
-          "привет",
-          "здравствуйте"
-        ],
-        "equals": null
-      },
-      "answer": "Здравствуйте! Чем могу помочь?"
-    },
-    {
-      "strategy_text": {
-        "key_word": [
-          "пока",
-          "до свидания"
-        ],
-        "equals": null
-      },
-      "answer": "До свидания! Хорошего дня!"
-    }
-  ],
+  "message": [],
   "order": [
     {
       "unique_prefix": "Пустышка",

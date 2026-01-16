@@ -83,6 +83,7 @@ export default function Plugins() {
   const [showDeleteConfirm, setShowDeleteConfirm] = createSignal(false);
   const [pluginToDelete, setPluginToDelete] = createSignal<string | null>(null);
 
+  // const API_BASE = 'http://127.0.0.1:58899';
   const API_BASE = '';
   const api = createApiSession();
 

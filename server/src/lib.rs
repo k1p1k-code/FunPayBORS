@@ -21,7 +21,7 @@ use tower_http::{
 };
 use tower::ServiceBuilder;
 use plugins::{ list_plugins, reload_plugins, callback_plugin, install_plugin_web, delete_plugin_web};
-use crate::message::{list_auto_replies, update_auto_replies};
+use crate::message::{add_auto_reply, delete_auto_reply, list_auto_replies, update_auto_replies};
 
 async fn check_panel_key(
     StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>,
@@ -67,6 +67,8 @@ pub async fn build_router(app_state: Arc<Mutex<AppState>>) -> (Router, mpsc::Rec
         // Message
         .with_state(tx)
 
+        //-------------------//
+
         // Plugins
         .route("/login", post(pass_check))
         .route("/plugins/callback", post(callback_plugin))
@@ -75,6 +77,8 @@ pub async fn build_router(app_state: Arc<Mutex<AppState>>) -> (Router, mpsc::Rec
         // Message
         .route("/messages/list", get(list_auto_replies))
         .route("/messages/update", post(update_auto_replies))
+        .route("/messages/delete", post(delete_auto_reply))
+        .route("/messages/add", post(add_auto_reply))
 
         .layer(middleware::from_fn_with_state(app_state.clone(), check_panel_key))
         .with_state(app_state)

@@ -4,9 +4,12 @@ import { createSignal } from 'solid-js';
 
 let apiKey = '';
 
+// const API_BASE = 'http://127.0.0.1:58899';
+const API_BASE = '';
+
 async function checkAuth(key: string): Promise<boolean> {
   try {
-    const response = await fetch('/login', {
+    const response = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -237,7 +240,7 @@ const App: Component<{ children: JSX.Element }> = (props) => {
   
   const checkKey = async (key: string): Promise<boolean> => {
     try {
-      const response = await fetch('/login', {
+      const response = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -21,3 +21,8 @@ pub struct UpdateAutoReply {
     pub strategy_text: StrategyMessage,
     pub id: usize
 }
+
+#[derive(Deserialize)]
+pub struct UpdateField {
+    pub update: usize
+}
