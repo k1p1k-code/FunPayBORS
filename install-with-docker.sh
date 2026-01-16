@@ -40,14 +40,26 @@ check_existing_container() {
     fi
 }
 
+# Функция проверки запущен ли контейнер
+check_container_running() {
+    if docker ps --format '{{.Names}}' | grep -q '^funpaybors-container$'; then
+        return 0  # Контейнер запущен
+    else
+        return 1  # Контейнер не запущен
+    fi
+}
+
 # Функция извлечения API ключа из логов
 extract_api_key() {
     local container_name="$1"
-    local max_wait=60  # Максимальное время ожидания в секундах
+    local quiet_mode="${2:-false}"
+    local max_wait=90  # Максимальное время ожидания в секундах
     local wait_interval=2  # Интервал проверки в секундах
     local attempts=$((max_wait / wait_interval))
 
-    print_message "Ожидаем появления API ключа в логах..."
+    if [ "$quiet_mode" != "true" ]; then
+        print_message "Ожидаем появления API ключа в логах..."
+    fi
 
     for ((i=1; i<=attempts; i++)); do
         # Получаем логи и ищем API ключ
@@ -56,7 +68,7 @@ extract_api_key() {
         # Ищем строку с API ключом
         if echo "$logs" | grep -q "Your api key:"; then
             # Извлекаем API ключ из строки
-            local api_key=$(echo "$logs" | grep "Your api key:" | tail -1 | sed -n 's/.*Your api key: //p' | tr -d '\r\n')
+            local api_key=$(echo "$logs" | grep "Your api key:" | tail -1 | sed -n 's/.*Your api key: //p' | tr -d '\r\n' | awk '{print $1}')
 
             if [ -n "$api_key" ] && [ "${#api_key}" -gt 5 ]; then
                 echo "$api_key"
@@ -65,20 +77,61 @@ extract_api_key() {
         fi
 
         # Проверяем, работает ли еще контейнер
-        if ! docker ps --format '{{.Names}}' | grep -q "^$container_name$"; then
-            print_error "Контейнер остановлен"
+        if ! check_container_running; then
+            if [ "$quiet_mode" != "true" ]; then
+                print_error "Контейнер остановлен"
+            fi
             return 1
         fi
 
         # Ждем перед следующей проверкой
         sleep $wait_interval
 
-        if [ $((i % 5)) -eq 0 ]; then
+        if [ "$quiet_mode" != "true" ] && [ $((i % 5)) -eq 0 ]; then
             print_info "Ожидание API ключа... ($((i * wait_interval))/$max_wait секунд)"
         fi
     done
 
+    if [ "$quiet_mode" != "true" ]; then
+        print_warning "API ключ не найден в логах за отведенное время"
+    fi
     return 1
+}
+
+# Функция быстрого получения API ключа
+quick_get_api_key() {
+    if ! command -v docker &> /dev/null; then
+        print_error "Docker не установлен"
+        return 1
+    fi
+
+    if ! check_existing_container; then
+        print_error "Контейнер funpaybors-container не найден"
+        return 1
+    fi
+
+    # Запускаем контейнер если он остановлен
+    if ! check_container_running; then
+        print_message "Контейнер остановлен. Запускаем..."
+        docker start funpaybors-container > /dev/null 2>&1
+        sleep 5
+    fi
+
+    API_KEY=$(extract_api_key "funpaybors-container" "true")
+
+    if [ -n "$API_KEY" ]; then
+        echo ""
+        print_success "╔═══════════════════════════════════════════════════════╗"
+        print_success "║                    API КЛЮЧ                           ║"
+        print_success "╠═══════════════════════════════════════════════════════╣"
+        print_success "║ $API_KEY"
+        print_success "╚═══════════════════════════════════════════════════════╝"
+        echo ""
+        return 0
+    else
+        print_error "Не удалось получить API ключ"
+        return 1
+    fi
 }
 
 # Функция отображения информации о контейнере
@@ -94,7 +147,7 @@ show_container_info() {
         print_info "║ Контейнер: funpaybors-container                     ║"
 
         # Проверяем статус
-        if docker ps --format '{{.Names}}' | grep -q '^funpaybors-container$'; then
+        if check_container_running; then
             STATUS="✅ ЗАПУЩЕН"
         else
             STATUS="⏸️ ОСТАНОВЛЕН"
@@ -212,7 +265,7 @@ show_container_menu() {
                 ;;
             7)
                 echo ""
-                if docker ps --format '{{.Names}}' | grep -q '^funpaybors-container$'; then
+                if check_container_running; then
                     print_message "Извлекаем API ключ из логов..."
                     API_KEY=$(extract_api_key "funpaybors-container")
 
@@ -262,6 +315,12 @@ show_container_menu() {
     done
 }
 
+# Проверка аргументов командной строки
+if [ "$1" = "--get-api-key" ] || [ "$1" = "-k" ]; then
+    quick_get_api_key
+    exit $?
+fi
+
 # Очистка экрана в начале
 clear_screen
 
@@ -275,6 +334,11 @@ print_message "==================================================="
 print_message "  Установка Docker и запуск funpaybors контейнера  "
 print_message "==================================================="
 echo ""
+print_info "Использование:"
+print_info "  sudo $0                   # Полная установка"
+print_info "  sudo $0 --get-api-key    # Быстрое получение API ключа"
+print_info "  sudo $0 -k               # Быстрое получение API ключа"
+echo ""
 
 # Проверка существования контейнера
 if check_existing_container; then
@@ -285,7 +349,7 @@ if check_existing_container; then
     # Если выбрана переустановка (возврат 1) или продолжение без изменений (возврат 0)
     if [ $MENU_RESULT -eq 0 ]; then
         print_message "Пропускаем установку, так как контейнер уже существует."
-        print_message "Для управления контейнером используйте команды Docker.")
+        print_message "Для управления контейнером используйте команды Docker."
         print_message "Скрипт завершает работу."
         exit 0
     fi
@@ -445,7 +509,7 @@ echo "  $CMD"
 echo ""
 
 print_message "Запускаем контейнер..."
-if eval $CMD; then
+if eval "$CMD"; then
     print_message "✓ Контейнер успешно запущен!"
 else
     print_error "Не удалось запустить контейнер"
@@ -530,7 +594,7 @@ API ключ: ${API_KEY:-не получен}
 ----------------------------------------
 Команды управления:
   Просмотр логов: docker logs -f funpaybors-container
-  Получить API ключ: docker logs funpaybors-container | grep "Your api key:"
+  Быстрое получение ключа: sudo $0 --get-api-key
   Переустановка: docker rm -f funpaybors-container && sudo ./$(basename "$0")
   Остановка: docker stop funpaybors-container
   Запуск: docker start funpaybors-container
