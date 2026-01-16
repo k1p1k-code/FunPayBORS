@@ -21,6 +21,7 @@ pub async fn update_auto_replies(
     StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>,
     Json(update_data): Json<UpdateAutoReply>,
 ) -> Json<Response>{
+    println!("sda");
     let app_state_guard = app_state.lock().await;
     let mut strategies_guard = app_state_guard.strategies.lock().await;
     match strategies_guard.message.get_mut(update_data.id) {
@@ -35,7 +36,7 @@ pub async fn update_auto_replies(
             )
         }
     }
-    app_state.lock().await.strategies.lock().await.save();
+    strategies_guard.save();
     Json(
         Response{ message: Some("Successfully updated".to_string()),
             status: ResponseStatus::Successfully
