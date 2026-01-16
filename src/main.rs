@@ -107,7 +107,6 @@ async fn main() -> Result<(), FunPayError> {
             while let Some(event) = server_rx.recv().await {
                 match event {
                     EventServer::ReloadPlugins => {
-                        println!("---------------\nReloading plugin...");
                         let mut python_plugin = plugins_python_server.lock().await;
                         *python_plugin = python_plugins::loader_plugins().unwrap_or_else(|m| {
                             println!("{}", m);
