@@ -49,11 +49,8 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/k1p1k-code/FunPayBORS/master/install-with-docker.sh)"
   ```
 - Ubuntu 18.04+, 20.04, 22.04, 24.04
-
 - Debian 10+, 11, 12
-
 - Fedora 34+, 35, 36, 37, 38, 39, 40
-
 - CentOS/RHEL 7+, 8, 9
 
 ## Билд
