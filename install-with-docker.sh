@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Скрипт установки Docker и запуска контейнера k1p1kcode/funpaybors
+# Поддерживает: Ubuntu, Debian, Fedora
 # Требует прав суперпользователя (sudo)
 
 set -e  # Прерывать выполнение при ошибках
@@ -26,6 +27,42 @@ print_success() {
     echo -e "\e[1;92m$1\e[0m"
 }
 
+# Функция для определения дистрибутива
+detect_distro() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_NAME="$ID"
+        OS_VERSION="$VERSION_ID"
+        OS_LIKE="$ID_LIKE"
+    elif [ -f /etc/debian_version ]; then
+        OS_NAME="debian"
+        OS_VERSION=$(cat /etc/debian_version)
+        OS_LIKE="debian"
+    elif [ -f /etc/fedora-release ]; then
+        OS_NAME="fedora"
+        OS_VERSION=$(cat /etc/fedora-release | grep -o '[0-9]*')
+        OS_LIKE="fedora"
+    else
+        OS_NAME=$(uname -s)
+        OS_VERSION=$(uname -r)
+    fi
+
+    # Для производных дистрибутивов
+    if [[ "$OS_LIKE" == *"ubuntu"* ]] || [[ "$OS_LIKE" == *"debian"* ]]; then
+        OS_FAMILY="debian"
+    elif [[ "$OS_LIKE" == *"fedora"* ]] || [[ "$OS_LIKE" == *"rhel"* ]] || [[ "$OS_NAME" == "centos"* ]]; then
+        OS_FAMILY="fedora"
+    elif [ "$OS_NAME" == "ubuntu" ] || [ "$OS_NAME" == "debian" ]; then
+        OS_FAMILY="debian"
+    elif [ "$OS_NAME" == "fedora" ] || [ "$OS_NAME" == "rhel" ] || [ "$OS_NAME" == "centos" ]; then
+        OS_FAMILY="fedora"
+    else
+        OS_FAMILY="unknown"
+    fi
+
+    echo "Detected: $OS_NAME $OS_VERSION (Family: $OS_FAMILY)"
+}
+
 # Функция для очистки экрана
 clear_screen() {
     clear
@@ -49,11 +86,30 @@ check_container_running() {
     fi
 }
 
+# Функция проверки порта
+check_port() {
+    local port=$1
+    if command -v ss &> /dev/null; then
+        if ss -tuln | grep -q ":$port "; then
+            return 0  # Порт занят
+        fi
+    elif command -v netstat &> /dev/null; then
+        if netstat -tuln | grep -q ":$port "; then
+            return 0  # Порт занят
+        fi
+    elif command -v lsof &> /dev/null; then
+        if lsof -i :$port &> /dev/null; then
+            return 0  # Порт занят
+        fi
+    fi
+    return 1  # Порт свободен
+}
+
 # Функция извлечения API ключа из файла контейнера
 extract_api_key() {
     local container_name="$1"
     local quiet_mode="${2:-false}"
-    local max_wait=120  # Максимальное время ожидания в секундах (увеличили для надежности)
+    local max_wait=120  # Максимальное время ожидания в секундах
     local wait_interval=3  # Интервал проверки в секундах
     local attempts=$((max_wait / wait_interval))
 
@@ -81,7 +137,7 @@ extract_api_key() {
             fi
         fi
 
-        # Также проверяем логи на случай, если ключ все еще выводится там
+        # Также проверяем логи
         local logs=$(docker logs --tail 20 "$container_name" 2>/dev/null)
         if echo "$logs" | grep -q "Your api key:"; then
             local api_key=$(echo "$logs" | grep "Your api key:" | tail -1 | sed -n 's/.*Your api key: //p' | tr -d '\r\n' | awk '{print $1}')
@@ -169,6 +225,9 @@ quick_get_api_key() {
         elif command -v xsel &> /dev/null; then
             echo -n "$API_KEY" | xsel --clipboard --input
             print_message "✓ Ключ скопирован в буфер обмена (xsel)"
+        elif command -v wl-copy &> /dev/null; then
+            echo -n "$API_KEY" | wl-copy
+            print_message "✓ Ключ скопирован в буфер обмена (wl-copy)"
         fi
         return 0
     else
@@ -342,6 +401,9 @@ show_container_menu() {
                         elif command -v xsel &> /dev/null; then
                             echo -n "$API_KEY" | xsel --clipboard --input
                             print_message "✓ Ключ скопирован в буфер обмена (xsel)"
+                        elif command -v wl-copy &> /dev/null; then
+                            echo -n "$API_KEY" | wl-copy
+                            print_message "✓ Ключ скопирован в буфер обмена (wl-copy)"
                         fi
                     else
                         print_error "Не удалось извлечь API ключ."
@@ -385,6 +447,145 @@ show_container_menu() {
     done
 }
 
+# Функция установки Docker на Debian/Ubuntu
+install_docker_debian() {
+    print_message "Установка Docker для Debian/Ubuntu..."
+
+    # Обновление пакетов
+    apt-get update -y
+
+    # Установка зависимостей
+    apt-get install -y \
+        apt-transport-https \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release \
+        software-properties-common
+
+    # Добавление GPG ключа Docker
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+
+    # Определяем кодовое имя дистрибутива
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        if [ -n "$VERSION_CODENAME" ]; then
+            CODENAME=$VERSION_CODENAME
+        else
+            CODENAME=$(echo "$VERSION" | grep -oP '(?<=\().+?(?=\))' | head -1)
+        fi
+    fi
+
+    # Если не удалось определить кодовое имя, используем lsb_release
+    if [ -z "$CODENAME" ] && command -v lsb_release &> /dev/null; then
+        CODENAME=$(lsb_release -cs)
+    fi
+
+    # Если все еще пусто, используем fallback
+    if [ -z "$CODENAME" ]; then
+        print_warning "Не удалось определить кодовое имя дистрибутива, используем 'jammy'"
+        CODENAME="jammy"
+    fi
+
+    # Добавление репозитория Docker
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $CODENAME stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # Установка Docker
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+}
+
+# Функция установки Docker на Fedora/RHEL
+install_docker_fedora() {
+    print_message "Установка Docker для Fedora/RHEL..."
+
+    # Установка зависимостей
+    dnf -y install dnf-plugins-core
+
+    # Добавление репозитория Docker
+    dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+
+    # Установка Docker
+    dnf -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+    # Настройка SELinux (если включен)
+    if command -v getenforce &> /dev/null && [ "$(getenforce)" = "Enforcing" ]; then
+        print_message "Настройка SELinux для Docker..."
+        setenforce 0
+        sed -i 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
+    fi
+}
+
+# Основная функция установки Docker
+install_docker() {
+    detect_distro
+
+    print_message "1. Проверяем установлен ли Docker..."
+
+    if command -v docker &> /dev/null; then
+        print_message "✓ Docker уже установлен"
+        return 0
+    fi
+
+    print_message "Устанавливаем Docker..."
+
+    case $OS_FAMILY in
+        "debian")
+            install_docker_debian
+            ;;
+        "fedora")
+            install_docker_fedora
+            ;;
+        *)
+            print_error "Неподдерживаемый дистрибутив: $OS_NAME"
+            print_info "Пожалуйста, установите Docker вручную:"
+            print_info "https://docs.docker.com/engine/install/"
+            exit 1
+            ;;
+    esac
+
+    # Проверка установки
+    if command -v docker &> /dev/null; then
+        print_message "✓ Docker успешно установлен"
+        return 0
+    else
+        print_error "Не удалось установить Docker"
+        exit 1
+    fi
+}
+
+# Функция запуска службы Docker
+start_docker_service() {
+    print_message "2. Запускаем службу Docker..."
+
+    case $OS_FAMILY in
+        "debian")
+            systemctl enable docker --now > /dev/null 2>&1
+            ;;
+        "fedora")
+            systemctl enable docker --now > /dev/null 2>&1
+            # Для Fedora может потребоваться дополнительная настройка
+            if [ "$OS_NAME" = "fedora" ]; then
+                groupadd docker 2>/dev/null || true
+                usermod -aG docker $SUDO_USER 2>/dev/null || true
+            fi
+            ;;
+    esac
+
+    # Проверяем, что Docker запущен
+    if systemctl is-active --quiet docker; then
+        print_message "✓ Служба Docker запущена"
+    else
+        print_warning "Служба Docker не запущена, пытаемся запустить..."
+        systemctl start docker 2>/dev/null || service docker start 2>/dev/null
+        sleep 3
+    fi
+}
+
 # Проверка аргументов командной строки
 if [ "$1" = "--get-api-key" ] || [ "$1" = "-k" ]; then
     quick_get_api_key
@@ -404,6 +605,7 @@ print_message "==================================================="
 print_message "  Установка Docker и запуск funpaybors контейнера  "
 print_message "==================================================="
 echo ""
+print_info "Поддерживаемые дистрибутивы: Ubuntu, Debian, Fedora"
 print_info "Использование:"
 print_info "  sudo $0                   # Полная установка"
 print_info "  sudo $0 --get-api-key    # Быстрое получение API ключа"
@@ -426,52 +628,11 @@ if check_existing_container; then
     # Если MENU_RESULT = 1, продолжаем установку
 fi
 
-# 1. Проверка и установка Docker
-print_message "1. Проверяем установлен ли Docker..."
+# 1. Установка Docker
+install_docker
 
-if command -v docker &> /dev/null; then
-    print_message "✓ Docker уже установлен"
-else
-    print_message "Устанавливаем Docker..."
-
-    # Обновление пакетов
-    apt-get update -y
-
-    # Установка зависимостей
-    apt-get install -y \
-        apt-transport-https \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release \
-        software-properties-common
-
-    # Добавление GPG ключа Docker
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-    # Добавление репозитория Docker
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https/download.docker.com/linux/ubuntu \
-      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-    # Установка Docker
-    apt-get update -y
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-    # Проверка установки
-    if command -v docker &> /dev/null; then
-        print_message "✓ Docker успешно установлен"
-    else
-        print_error "Не удалось установить Docker"
-        exit 1
-    fi
-fi
-
-# 2. Запуск Docker службы
-print_message "2. Запускаем службу Docker..."
-systemctl enable docker --now > /dev/null 2>&1
-print_message "✓ Служба Docker запущена"
+# 2. Запуск службы Docker
+start_docker_service
 
 # 3. Загрузка образа из Docker Hub
 print_message "3. Загружаем образ k1p1kcode/funpaybors..."
@@ -523,7 +684,8 @@ if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; th
     PORT=58899
 fi
 
-if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+# Проверка занятости порта
+if check_port "$PORT"; then
     print_warning "Порт $PORT уже используется! Это может вызвать конфликт."
     read -p "Продолжить? (y/N): " -n 1 -r
     echo
@@ -646,6 +808,9 @@ if [ -n "$API_KEY" ]; then
     elif command -v xsel &> /dev/null; then
         echo -n "$API_KEY" | xsel --clipboard --input
         print_message "✓ Ключ скопирован в буфер обмена (xsel)"
+    elif command -v wl-copy &> /dev/null; then
+        echo -n "$API_KEY" | wl-copy
+        print_message "✓ Ключ скопирован в буфер обмена (wl-copy)"
     fi
 else
     echo ""
@@ -666,6 +831,7 @@ INFO_FILE="/tmp/funpaybors_install_$(date +%Y%m%d_%H%M%S).txt"
 cat > "$INFO_FILE" << EOF
 Информация об установке funpaybors
 Дата установки: $(date)
+Дистрибутив: $OS_NAME $OS_VERSION
 ----------------------------------------
 Контейнер: funpaybors-container
 Образ: k1p1kcode/funpaybors
