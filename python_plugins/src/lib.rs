@@ -45,6 +45,7 @@ fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
         #[cfg(unix)]
         {
             packeage_venv.push("lib");
+            packeage_venv.push("python3.13");
         }
         #[cfg(windows)]
         {
