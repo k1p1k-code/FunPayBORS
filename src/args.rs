@@ -46,12 +46,12 @@ impl ArgsOption {
                 }
                 "--help" | "-h" => {
                     Self::print_help();
-                    std::process::exit(0);
+                    exit(0);
                 }
                 unknown => {
                     eprintln!("Unknown argument: {}", unknown);
                     Self::print_help();
-                    std::process::exit(1);
+                    exit(1);
                 }
             }
         }

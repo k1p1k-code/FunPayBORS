@@ -17,7 +17,7 @@ use crate::utils::print_project;
 async fn main() -> Result<(), FunPayError> {
     let args_option = ArgsOption::new();
     print_project();
-
+    println!("Current directory: {}", std::env::current_dir().expect("Error init").display());
     let plugins_python_sync = Arc::new(Mutex::new(
         python_plugins::loader_plugins().unwrap_or_else(|m| {
             println!("{}", m);
@@ -48,6 +48,7 @@ async fn main() -> Result<(), FunPayError> {
     let plugins_python_funpay= plugins_python_sync.clone();
     let strategies_funpay=strategies.clone();
     let event_handler_funpay = tokio::spawn(async move {
+        println!("FunPay handler run");
         while let Ok(event) = rx_fupay.recv().await {
             let plugins_python_funpay=plugins_python_funpay.clone();
             let strategies=strategies_funpay.lock().await;
@@ -90,7 +91,8 @@ async fn main() -> Result<(), FunPayError> {
 
 
     if args_option.server.is_some() {
-        println!("Your api key: {}", app_state.clone().lock().await.api_key);
+        std::fs::write("./api_key", app_state.clone().lock().await.api_key.clone()).expect("Error writing api key");
+        println!("\nYour api key: {}\n", app_state.clone().lock().await.api_key);
         let (router, mut server_rx) = server::build_router(app_state).await;
         let listener_server = TcpListener::bind("0.0.0.0:58899").await?;
         let _server = tokio::spawn(  async move {
@@ -119,7 +121,6 @@ async fn main() -> Result<(), FunPayError> {
             }
         });
 
-        println!("Launch is successful");
         tokio::select! {
 
             result = account.start_polling_loop() => {
@@ -134,7 +135,6 @@ async fn main() -> Result<(), FunPayError> {
             }
         }
     } else {
-        println!("Launch is successful");
         tokio::select! {
             _ = event_handler_funpay => {
                 println!("FunPay event handler stopped");
