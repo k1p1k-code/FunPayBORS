@@ -22,6 +22,10 @@ print_info() {
     echo -e "\e[1;36m$1\e[0m"
 }
 
+print_success() {
+    echo -e "\e[1;92m$1\e[0m"
+}
+
 # Функция для очистки экрана
 clear_screen() {
     clear
@@ -34,6 +38,47 @@ check_existing_container() {
     else
         return 1  # Контейнер не существует
     fi
+}
+
+# Функция извлечения API ключа из логов
+extract_api_key() {
+    local container_name="$1"
+    local max_wait=60  # Максимальное время ожидания в секундах
+    local wait_interval=2  # Интервал проверки в секундах
+    local attempts=$((max_wait / wait_interval))
+
+    print_message "Ожидаем появления API ключа в логах..."
+
+    for ((i=1; i<=attempts; i++)); do
+        # Получаем логи и ищем API ключ
+        local logs=$(docker logs "$container_name" 2>/dev/null)
+
+        # Ищем строку с API ключом
+        if echo "$logs" | grep -q "Your api key:"; then
+            # Извлекаем API ключ из строки
+            local api_key=$(echo "$logs" | grep "Your api key:" | tail -1 | sed -n 's/.*Your api key: //p' | tr -d '\r\n')
+
+            if [ -n "$api_key" ] && [ "${#api_key}" -gt 5 ]; then
+                echo "$api_key"
+                return 0
+            fi
+        fi
+
+        # Проверяем, работает ли еще контейнер
+        if ! docker ps --format '{{.Names}}' | grep -q "^$container_name$"; then
+            print_error "Контейнер остановлен"
+            return 1
+        fi
+
+        # Ждем перед следующей проверкой
+        sleep $wait_interval
+
+        if [ $((i % 5)) -eq 0 ]; then
+            print_info "Ожидание API ключа... ($((i * wait_interval))/$max_wait секунд)"
+        fi
+    done
+
+    return 1
 }
 
 # Функция отображения информации о контейнере
@@ -85,11 +130,12 @@ show_container_menu() {
         print_info "  4) Перезапустить контейнер"
         print_info "  5) Остановить контейнер"
         print_info "  6) Запустить остановленный контейнер"
-        print_info "  7) Продолжить установку без изменений (выйти из меню)"
-        print_info "  8) Выйти из скрипта"
+        print_info "  7) Показать API ключ"
+        print_info "  8) Продолжить установку без изменений (выйти из меню)"
+        print_info "  9) Выйти из скрипта"
         echo ""
 
-        read -p "Ваш выбор (1-8): " choice
+        read -p "Ваш выбор (1-9): " choice
 
         case $choice in
             1)
@@ -166,16 +212,51 @@ show_container_menu() {
                 ;;
             7)
                 echo ""
+                if docker ps --format '{{.Names}}' | grep -q '^funpaybors-container$'; then
+                    print_message "Извлекаем API ключ из логов..."
+                    API_KEY=$(extract_api_key "funpaybors-container")
+
+                    if [ -n "$API_KEY" ]; then
+                        echo ""
+                        print_success "╔═══════════════════════════════════════════════════════╗"
+                        print_success "║                    API КЛЮЧ                           ║"
+                        print_success "╠═══════════════════════════════════════════════════════╣"
+                        print_success "║ $API_KEY"
+                        print_success "╚═══════════════════════════════════════════════════════╝"
+                        echo ""
+                        print_message "API ключ скопирован в буфер обмена (если доступно) и файл."
+
+                        # Сохраняем ключ в файл
+                        echo "$API_KEY" > /tmp/funpaybors_api_key.txt
+                        chmod 600 /tmp/funpaybors_api_key.txt
+
+                        # Пытаемся скопировать в буфер обмена (для Linux)
+                        if command -v xclip &> /dev/null; then
+                            echo -n "$API_KEY" | xclip -selection clipboard
+                            print_message "✓ Ключ скопирован в буфер обмена (xclip)"
+                        elif command -v xsel &> /dev/null; then
+                            echo -n "$API_KEY" | xsel --clipboard --input
+                            print_message "✓ Ключ скопирован в буфер обмена (xsel)"
+                        fi
+                    else
+                        print_error "Не удалось извлечь API ключ. Попробуйте позже или проверьте логи."
+                    fi
+                else
+                    print_error "Контейнер не запущен. Запустите его сначала."
+                fi
+                ;;
+            8)
+                echo ""
                 print_message "Продолжаем установку без изменений..."
                 return 0  # Вернем 0 чтобы пропустить установку
                 ;;
-            8)
+            9)
                 echo ""
                 print_message "Выход из скрипта."
                 exit 0
                 ;;
             *)
-                print_error "Неверный выбор. Пожалуйста, выберите 1-8."
+                print_error "Неверный выбор. Пожалуйста, выберите 1-9."
                 ;;
         esac
     done
@@ -204,7 +285,7 @@ if check_existing_container; then
     # Если выбрана переустановка (возврат 1) или продолжение без изменений (возврат 0)
     if [ $MENU_RESULT -eq 0 ]; then
         print_message "Пропускаем установку, так как контейнер уже существует."
-        print_message "Для управления контейнером используйте команды Docker."
+        print_message "Для управления контейнером используйте команды Docker.")
         print_message "Скрипт завершает работу."
         exit 0
     fi
@@ -371,19 +452,19 @@ else
     exit 1
 fi
 
-# 7. Проверка статуса
-print_message "7. Проверяем статус контейнера..."
-sleep 5
+# 7. Ожидание появления API ключа
+print_message "7. Ожидаем запуска приложения и получение API ключа..."
+
+API_KEY=$(extract_api_key "funpaybors-container")
+
+# 8. Проверка статуса
+print_message "8. Проверяем статус контейнера..."
 
 echo ""
 print_message "Статус контейнера:"
 docker ps --filter "name=funpaybors-container" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-echo ""
-print_message "Последние логи контейнера:"
-docker logs --tail 5 funpaybors-container
-
-# 8. Итоговая информация
+# 9. Итоговая информация
 clear_screen
 print_message "==================================================="
 print_message "      УСТАНОВКА УСПЕШНО ЗАВЕРШЕНА!                 "
@@ -399,6 +480,38 @@ if [ -n "$VOLUME_PATH" ]; then
     print_message "  • Данные сохраняются в: $VOLUME_PATH"
 fi
 print_message "  • Автоперезапуск: включен"
+
+if [ -n "$API_KEY" ]; then
+    echo ""
+    print_success "╔═══════════════════════════════════════════════════════╗"
+    print_success "║                   ВАШ API КЛЮЧ                        ║"
+    print_success "╠═══════════════════════════════════════════════════════╣"
+    print_success "║ $API_KEY"
+    print_success "╚═══════════════════════════════════════════════════════╝"
+    echo ""
+    print_message "⚠️  СОХРАНИТЕ ЭТОТ КЛЮЧ! ОН ПОТРЕБУЕТСЯ ДЛЯ РАБОТЫ С ПАНЕЛЬЮ"
+
+    # Сохраняем ключ в файл
+    KEY_FILE="/opt/funpaybors_api_key_$(date +%Y%m%d_%H%M%S).txt"
+    echo "$API_KEY" > "$KEY_FILE"
+    chmod 600 "$KEY_FILE"
+    print_message "✓ Ключ сохранен в файл: $KEY_FILE"
+
+    # Пытаемся скопировать в буфер обмена
+    if command -v xclip &> /dev/null; then
+        echo -n "$API_KEY" | xclip -selection clipboard
+        print_message "✓ Ключ скопирован в буфер обмена (xclip)"
+    elif command -v xsel &> /dev/null; then
+        echo -n "$API_KEY" | xsel --clipboard --input
+        print_message "✓ Ключ скопирован в буфер обмена (xsel)"
+    fi
+else
+    echo ""
+    print_warning "API ключ не был получен автоматически."
+    print_message "Вы можете получить его позже командой: docker logs funpaybors-container"
+    print_message "Или перезапустив контейнер."
+fi
+
 print_message "==================================================="
 
 # Создаем файл с информацией о запуске
@@ -411,11 +524,13 @@ cat > "$INFO_FILE" << EOF
 Образ: k1p1kcode/funpaybors
 Порт: $PORT
 GOLDEN_KEY: [установлен]
+API ключ: ${API_KEY:-не получен}
 Путь к данным: ${VOLUME_PATH:-не настроен}
 Команда запуска: $CMD
 ----------------------------------------
 Команды управления:
   Просмотр логов: docker logs -f funpaybors-container
+  Получить API ключ: docker logs funpaybors-container | grep "Your api key:"
   Переустановка: docker rm -f funpaybors-container && sudo ./$(basename "$0")
   Остановка: docker stop funpaybors-container
   Запуск: docker start funpaybors-container
@@ -423,3 +538,13 @@ EOF
 
 print_message "Информация об установке сохранена в: $INFO_FILE"
 print_message "==================================================="
+
+# Предлагаем показать первые логи
+echo ""
+read -p "Показать первые 10 строк логов для проверки? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "═══════════════════════════════════════════════════════"
+    docker logs --tail 10 funpaybors-container
+    echo "═══════════════════════════════════════════════════════"
+fi
