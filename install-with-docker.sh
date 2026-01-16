@@ -49,25 +49,41 @@ check_container_running() {
     fi
 }
 
-# Функция извлечения API ключа из логов
+# Функция извлечения API ключа из файла контейнера
 extract_api_key() {
     local container_name="$1"
     local quiet_mode="${2:-false}"
-    local max_wait=90  # Максимальное время ожидания в секундах
-    local wait_interval=2  # Интервал проверки в секундах
+    local max_wait=120  # Максимальное время ожидания в секундах (увеличили для надежности)
+    local wait_interval=3  # Интервал проверки в секундах
     local attempts=$((max_wait / wait_interval))
 
     if [ "$quiet_mode" != "true" ]; then
-        print_message "Ожидаем появления API ключа в логах..."
+        print_message "Ожидаем генерации API ключа..."
     fi
 
     for ((i=1; i<=attempts; i++)); do
-        # Получаем логи и ищем API ключ
-        local logs=$(docker logs "$container_name" 2>/dev/null)
+        # Проверяем, работает ли еще контейнер
+        if ! check_container_running; then
+            if [ "$quiet_mode" != "true" ]; then
+                print_error "Контейнер остановлен"
+            fi
+            return 1
+        fi
 
-        # Ищем строку с API ключом
+        # Пробуем получить ключ из файла /app/api_key в контейнере
+        if docker exec "$container_name" sh -c '[ -f /app/api_key ] && cat /app/api_key 2>/dev/null' > /tmp/api_key.tmp 2>/dev/null; then
+            local api_key=$(cat /tmp/api_key.tmp 2>/dev/null | tr -d '\r\n' | xargs)
+
+            if [ -n "$api_key" ] && [ "${#api_key}" -gt 5 ]; then
+                echo "$api_key"
+                rm -f /tmp/api_key.tmp 2>/dev/null
+                return 0
+            fi
+        fi
+
+        # Также проверяем логи на случай, если ключ все еще выводится там
+        local logs=$(docker logs --tail 20 "$container_name" 2>/dev/null)
         if echo "$logs" | grep -q "Your api key:"; then
-            # Извлекаем API ключ из строки
             local api_key=$(echo "$logs" | grep "Your api key:" | tail -1 | sed -n 's/.*Your api key: //p' | tr -d '\r\n' | awk '{print $1}')
 
             if [ -n "$api_key" ] && [ "${#api_key}" -gt 5 ]; then
@@ -76,13 +92,18 @@ extract_api_key() {
             fi
         fi
 
-        # Проверяем, работает ли еще контейнер
-        if ! check_container_running; then
-            if [ "$quiet_mode" != "true" ]; then
-                print_error "Контейнер остановлен"
+        # Проверяем другие возможные расположения файла
+        for path in "/app/api_key" "/api_key" "/data/api_key" "/app/data/api_key"; do
+            if docker exec "$container_name" sh -c "[ -f '$path' ] && cat '$path' 2>/dev/null" > /tmp/api_key_check.tmp 2>/dev/null; then
+                local api_key=$(cat /tmp/api_key_check.tmp 2>/dev/null | tr -d '\r\n' | xargs)
+                if [ -n "$api_key" ] && [ "${#api_key}" -gt 5 ]; then
+                    echo "$api_key"
+                    rm -f /tmp/api_key_check.tmp 2>/dev/null
+                    return 0
+                fi
             fi
-            return 1
-        fi
+        done
+        rm -f /tmp/api_key_check.tmp 2>/dev/null
 
         # Ждем перед следующей проверкой
         sleep $wait_interval
@@ -93,7 +114,11 @@ extract_api_key() {
     done
 
     if [ "$quiet_mode" != "true" ]; then
-        print_warning "API ключ не найден в логах за отведенное время"
+        print_warning "API ключ не найден в отведенное время"
+        print_info "Попробуйте проверить вручную:"
+        print_info "1. docker exec funpaybors-container ls -la /app/"
+        print_info "2. docker exec funpaybors-container cat /app/api_key 2>/dev/null || echo 'Файл не найден'"
+        print_info "3. docker logs --tail 50 funpaybors-container"
     fi
     return 1
 }
@@ -113,8 +138,13 @@ quick_get_api_key() {
     # Запускаем контейнер если он остановлен
     if ! check_container_running; then
         print_message "Контейнер остановлен. Запускаем..."
-        docker start funpaybors-container > /dev/null 2>&1
-        sleep 5
+        if docker start funpaybors-container > /dev/null 2>&1; then
+            print_message "✓ Контейнер запущен"
+            sleep 8  # Даем время приложению запуститься
+        else
+            print_error "Не удалось запустить контейнер"
+            return 1
+        fi
     fi
 
     API_KEY=$(extract_api_key "funpaybors-container" "true")
@@ -127,9 +157,26 @@ quick_get_api_key() {
         print_success "║ $API_KEY"
         print_success "╚═══════════════════════════════════════════════════════╝"
         echo ""
+
+        # Сохраняем ключ в файл
+        echo "$API_KEY" > /tmp/funpaybors_api_key.txt
+        chmod 600 /tmp/funpaybors_api_key.txt
+
+        # Пытаемся скопировать в буфер обмена
+        if command -v xclip &> /dev/null; then
+            echo -n "$API_KEY" | xclip -selection clipboard
+            print_message "✓ Ключ скопирован в буфер обмена (xclip)"
+        elif command -v xsel &> /dev/null; then
+            echo -n "$API_KEY" | xsel --clipboard --input
+            print_message "✓ Ключ скопирован в буфер обмена (xsel)"
+        fi
         return 0
     else
         print_error "Не удалось получить API ключ"
+        print_info "Попробуйте проверить вручную:"
+        print_info "  docker exec funpaybors-container ls -la /app/"
+        print_info "  docker exec funpaybors-container cat /app/api_key 2>/dev/null || echo 'Файл не найден'"
+        print_info "  docker logs --tail 30 funpaybors-container"
         return 1
     fi
 }
@@ -184,11 +231,12 @@ show_container_menu() {
         print_info "  5) Остановить контейнер"
         print_info "  6) Запустить остановленный контейнер"
         print_info "  7) Показать API ключ"
-        print_info "  8) Продолжить установку без изменений (выйти из меню)"
-        print_info "  9) Выйти из скрипта"
+        print_info "  8) Проверить наличие файла api_key"
+        print_info "  9) Продолжить установку без изменений (выйти из меню)"
+        print_info "  10) Выйти из скрипта"
         echo ""
 
-        read -p "Ваш выбор (1-9): " choice
+        read -p "Ваш выбор (1-10): " choice
 
         case $choice in
             1)
@@ -239,6 +287,8 @@ show_container_menu() {
                 docker restart funpaybors-container > /dev/null 2>&1
                 if [ $? -eq 0 ]; then
                     print_message "✅ Контейнер перезапущен."
+                    print_message "Подождите 10 секунд для полного запуска..."
+                    sleep 10
                 else
                     print_error "Не удалось перезапустить контейнер."
                 fi
@@ -259,6 +309,8 @@ show_container_menu() {
                 docker start funpaybors-container > /dev/null 2>&1
                 if [ $? -eq 0 ]; then
                     print_message "✅ Контейнер запущен."
+                    print_message "Подождите 10 секунд для полного запуска..."
+                    sleep 10
                 else
                     print_error "Не удалось запустить контейнер."
                 fi
@@ -266,7 +318,7 @@ show_container_menu() {
             7)
                 echo ""
                 if check_container_running; then
-                    print_message "Извлекаем API ключ из логов..."
+                    print_message "Извлекаем API ключ из файла /app/api_key..."
                     API_KEY=$(extract_api_key "funpaybors-container")
 
                     if [ -n "$API_KEY" ]; then
@@ -292,7 +344,10 @@ show_container_menu() {
                             print_message "✓ Ключ скопирован в буфер обмена (xsel)"
                         fi
                     else
-                        print_error "Не удалось извлечь API ключ. Попробуйте позже или проверьте логи."
+                        print_error "Не удалось извлечь API ключ."
+                        print_info "Попробуйте проверить вручную:"
+                        print_info "  docker exec funpaybors-container ls -la /app/"
+                        print_info "  docker exec funpaybors-container cat /app/api_key 2>/dev/null || echo 'Файл не найден'"
                     fi
                 else
                     print_error "Контейнер не запущен. Запустите его сначала."
@@ -300,16 +355,31 @@ show_container_menu() {
                 ;;
             8)
                 echo ""
+                if check_existing_container; then
+                    print_message "Проверяем файлы в контейнере..."
+                    echo "═══════════════════════════════════════════════════════"
+                    print_info "Содержимое директории /app/:"
+                    docker exec funpaybors-container ls -la /app/ 2>/dev/null || print_error "Не удалось выполнить команду в контейнере"
+                    echo ""
+                    print_info "Попытка чтения /app/api_key:"
+                    docker exec funpaybors-container cat /app/api_key 2>/dev/null || print_error "Файл /app/api_key не найден или недоступен"
+                    echo "═══════════════════════════════════════════════════════"
+                else
+                    print_error "Контейнер не найден"
+                fi
+                ;;
+            9)
+                echo ""
                 print_message "Продолжаем установку без изменений..."
                 return 0  # Вернем 0 чтобы пропустить установку
                 ;;
-            9)
+            10)
                 echo ""
                 print_message "Выход из скрипта."
                 exit 0
                 ;;
             *)
-                print_error "Неверный выбор. Пожалуйста, выберите 1-9."
+                print_error "Неверный выбор. Пожалуйста, выберите 1-10."
                 ;;
         esac
     done
@@ -382,7 +452,7 @@ else
 
     # Добавление репозитория Docker
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https/download.docker.com/linux/ubuntu \
       $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     # Установка Docker
@@ -516,8 +586,10 @@ else
     exit 1
 fi
 
-# 7. Ожидание появления API ключа
-print_message "7. Ожидаем запуска приложения и получение API ключа..."
+# 7. Ожидание появления API ключа в файле
+print_message "7. Ожидаем запуска приложения и генерацию API ключа..."
+print_info "Приложение создает файл /app/api_key внутри контейнера"
+print_info "Это может занять до 2 минут..."
 
 API_KEY=$(extract_api_key "funpaybors-container")
 
@@ -544,6 +616,7 @@ if [ -n "$VOLUME_PATH" ]; then
     print_message "  • Данные сохраняются в: $VOLUME_PATH"
 fi
 print_message "  • Автоперезапуск: включен"
+print_message "  • API ключ сохраняется в: /app/api_key внутри контейнера"
 
 if [ -n "$API_KEY" ]; then
     echo ""
@@ -554,12 +627,17 @@ if [ -n "$API_KEY" ]; then
     print_success "╚═══════════════════════════════════════════════════════╝"
     echo ""
     print_message "⚠️  СОХРАНИТЕ ЭТОТ КЛЮЧ! ОН ПОТРЕБУЕТСЯ ДЛЯ РАБОТЫ С ПАНЕЛЬЮ"
+    print_message "Ключ также доступен внутри контейнера по пути: /app/api_key"
 
-    # Сохраняем ключ в файл
+    # Сохраняем ключ в файл на хосте
     KEY_FILE="/opt/funpaybors_api_key_$(date +%Y%m%d_%H%M%S).txt"
     echo "$API_KEY" > "$KEY_FILE"
     chmod 600 "$KEY_FILE"
     print_message "✓ Ключ сохранен в файл: $KEY_FILE"
+
+    # Также сохраняем ключ в доступное место
+    echo "$API_KEY" > /tmp/funpaybors_api_key.txt
+    chmod 600 /tmp/funpaybors_api_key.txt
 
     # Пытаемся скопировать в буфер обмена
     if command -v xclip &> /dev/null; then
@@ -572,8 +650,13 @@ if [ -n "$API_KEY" ]; then
 else
     echo ""
     print_warning "API ключ не был получен автоматически."
-    print_message "Вы можете получить его позже командой: docker logs funpaybors-container"
-    print_message "Или перезапустив контейнер."
+    print_info "Вы можете получить его вручную следующими способами:"
+    print_info "1. docker exec funpaybors-container cat /app/api_key"
+    print_info "2. docker logs --tail 50 funpaybors-container"
+    print_info "3. Перезапустите контейнер и попробуйте снова"
+    print_info ""
+    print_info "Или используйте команду позже:"
+    print_info "  sudo $0 --get-api-key"
 fi
 
 print_message "==================================================="
@@ -588,13 +671,15 @@ cat > "$INFO_FILE" << EOF
 Образ: k1p1kcode/funpaybors
 Порт: $PORT
 GOLDEN_KEY: [установлен]
-API ключ: ${API_KEY:-не получен}
+API ключ: ${API_KEY:-не получен (проверьте /app/api_key внутри контейнера)}
 Путь к данным: ${VOLUME_PATH:-не настроен}
 Команда запуска: $CMD
 ----------------------------------------
 Команды управления:
   Просмотр логов: docker logs -f funpaybors-container
+  Получить API ключ: docker exec funpaybors-container cat /app/api_key
   Быстрое получение ключа: sudo $0 --get-api-key
+  Проверить файлы в контейнере: docker exec funpaybors-container ls -la /app/
   Переустановка: docker rm -f funpaybors-container && sudo ./$(basename "$0")
   Остановка: docker stop funpaybors-container
   Запуск: docker start funpaybors-container
@@ -603,12 +688,12 @@ EOF
 print_message "Информация об установке сохранена в: $INFO_FILE"
 print_message "==================================================="
 
-# Предлагаем показать первые логи
+# Предлагаем проверить файлы в контейнере
 echo ""
-read -p "Показать первые 10 строк логов для проверки? (y/N): " -n 1 -r
+read -p "Показать содержимое директории /app/ в контейнере? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "═══════════════════════════════════════════════════════"
-    docker logs --tail 10 funpaybors-container
+    docker exec funpaybors-container ls -la /app/ 2>/dev/null || print_error "Не удалось выполнить команду"
     echo "═══════════════════════════════════════════════════════"
 fi
