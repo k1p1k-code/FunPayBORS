@@ -6,7 +6,7 @@ let apiKey = '';
 
 async function checkAuth(key: string): Promise<boolean> {
   try {
-    const response = await fetch('http://127.0.0.1:58899/login', {
+    const response = await fetch('/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -237,7 +237,7 @@ const App: Component<{ children: JSX.Element }> = (props) => {
   
   const checkKey = async (key: string): Promise<boolean> => {
     try {
-      const response = await fetch('http://127.0.0.1:58899/login', {
+      const response = await fetch('/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
