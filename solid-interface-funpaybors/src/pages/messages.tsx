@@ -12,7 +12,7 @@ interface StrategyMessage {
 }
 
 interface UpdateAutoReply {
-  strategy_text: StrategyMessage;
+  strategy_message: StrategyMessage;
   id: number;
 }
 
@@ -258,7 +258,7 @@ export default function AutoReplies() {
       }
       
       const updateData: UpdateAutoReply = {
-        strategy_text: strategy,
+        strategy_message: strategy,
         id: currentIndex
       };
 

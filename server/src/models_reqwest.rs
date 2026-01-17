@@ -18,7 +18,7 @@ pub struct CallbackMenuPlugin {
 
 #[derive(Deserialize)]
 pub struct UpdateAutoReply {
-    pub strategy_text: StrategyMessage,
+    pub strategy_message: StrategyMessage,
     pub id: usize
 }
 

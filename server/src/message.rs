@@ -25,7 +25,7 @@ pub async fn update_auto_replies(
     let mut strategies_guard = app_state_guard.strategies.lock().await;
     match strategies_guard.message.get_mut(update_data.id) {
         Some(message) => {
-            *message = update_data.strategy_text;
+            *message = update_data.strategy_message;
         }
         None => {
             return Json(
