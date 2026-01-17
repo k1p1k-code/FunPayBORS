@@ -140,13 +140,13 @@ pub async fn callback_plugin(
 
     if let Some(plugin) = plugin_check{
         if let Some(build_menu) = &plugin.build_menu{
-            let menu=python::run_menu_build(build_menu).await.expect(format!("cannot build menu in {}", plugin.name.to_string()).as_str());
+            let menu=python::run_menu_build(build_menu, &plugin.storage).await.expect(format!("cannot build menu in {}", plugin.name.to_string()).as_str());
             if let Some(buttons)=menu.button && plugin_callback.callback_type == "button".to_string(){
                 if let Some(button  ) = buttons.get(plugin_callback.callback_id as usize).clone() {
-                    return match python::run_hook_no_args(&button.callback, &plugin.storage).await {
-                        Ok(_) => {
+                    return match python::run_hook_button(&button.callback, &plugin.storage).await {
+                        Ok(s) => {
                             Json(Response {
-                                message: None,
+                                message: Some(s),
                                 status: ResponseStatus::Successfully
                             })
                         }
@@ -177,9 +177,9 @@ pub async fn callback_plugin(
                                     })
                                 }
                             }
-                            Err(_) => {
+                            Err(e) => {
                                 Json(Response {
-                                    message: Some("The callback completed its work with an error".to_string()),
+                                    message: Some(format!("The callback caused an error: {}", e)),
                                     status: ResponseStatus::Error
                                 })
                             }
@@ -217,7 +217,7 @@ pub async fn list_plugins(StateAxum(app_state): StateAxum<Arc<Mutex<AppState>>>)
             continue;
         }
         if let Some(menu) = &i.build_menu{
-            let menu=python::run_menu_build(menu).await.expect(format!("cannot build menu in {}", i.name.to_string()).as_str());
+            let menu=python::run_menu_build(menu, &i.storage).await.expect(format!("cannot build menu in {}", i.name.to_string()).as_str());
             if let Some(text) = menu.text{
                 for i in text{
                     texts.push(i.value);
