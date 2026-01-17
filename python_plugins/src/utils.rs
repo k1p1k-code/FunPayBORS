@@ -53,11 +53,16 @@ pub async fn run_hook(
 
 async fn call_menu_build(
     py_func: Py<PyAny>,
+    storage: Option<Py<PyAny>>,
 ) -> PyResult<PluginMenu> {
     let future = async move {
         Python::attach(|py| {
             let locals = pyo3_async_runtimes::tokio::get_current_locals(py)?;
             let bound_func = py_func.bind(py);
+            if let Some(s) = storage {
+                let globals = PyModule::import(py, "__main__")?;
+                let _ = globals.setattr("storage", s).unwrap();
+            }
             let py_future = bound_func.call0()?;
             pyo3_async_runtimes::into_future_with_locals(&locals, py_future)
         })
@@ -70,24 +75,28 @@ async fn call_menu_build(
 }
 pub async fn run_menu_build(
     hook: &Py<PyAny>,
+    storage: &Option<Py<PyAny>>,
 ) -> PyResult<PluginMenu> {
     pyo3::Python::initialize();
 
     Python::attach(|py| {
         let hook_clone = hook.clone_ref(py);
-
+        let mut strg: Option<Py<PyAny>> = None;
+        if let Some(s) = storage {
+            strg = Some(s.clone_ref(py));
+        }
 
         pyo3_async_runtimes::tokio::run(
             py,
-            async move { call_menu_build(hook_clone).await },
+            async move { call_menu_build(hook_clone, strg).await },
         )
     })
 }
 
-async fn call_hook_no_args(
+async fn call_hook_button(
     py_func: Py<PyAny>,
     storage: Option<Py<PyAny>>,
-) -> PyResult<()> {
+) -> PyResult<String> {
     let future = async move {
         Python::attach(|py| {
             let locals = pyo3_async_runtimes::tokio::get_current_locals(py)?;
@@ -101,16 +110,17 @@ async fn call_hook_no_args(
         })
     };
 
+
     let rust_future = future.await?;
-    let _ = rust_future.await?;
-    Ok(())
+    let result = rust_future.await?;
+    let response=Python::attach(|py| result.bind(py).extract::<String>()).unwrap_or_default();
+    Ok(response)
 }
-pub async fn run_hook_no_args(
+pub async fn run_hook_button(
     hook: &Py<PyAny>,
     storage: &Option<Py<PyAny>>,
-) -> PyResult<()> {
+) -> PyResult<String> {
     pyo3::Python::initialize();
-
     Python::attach(|py| {
         let hook_clone = hook.clone_ref(py);
         let mut strg: Option<Py<PyAny>> = None;
@@ -119,7 +129,7 @@ pub async fn run_hook_no_args(
         }
         pyo3_async_runtimes::tokio::run(
             py,
-            async move { call_hook_no_args(hook_clone, strg).await },
+            async move { call_hook_button(hook_clone, strg).await },
         )
     })
 }
