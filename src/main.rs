@@ -19,7 +19,7 @@ async fn main() -> Result<(), FunPayError> {
     print_project();
     println!("Current directory: {}", std::env::current_dir().expect("Error init").display());
     let plugins_python_sync = Arc::new(Mutex::new(
-        python_plugins::loader_plugins().unwrap_or_else(|m| {
+        python_plugins::loader_plugins(false).unwrap_or_else(|m| {
             println!("{}", m);
             vec![]
         })
@@ -110,7 +110,7 @@ async fn main() -> Result<(), FunPayError> {
                 match event {
                     EventServer::ReloadPlugins => {
                         let mut python_plugin = plugins_python_server.lock().await;
-                        *python_plugin = python_plugins::loader_plugins().unwrap_or_else(|m| {
+                        *python_plugin = python_plugins::loader_plugins(true).unwrap_or_else(|m| {
                             println!("{}", m);
                             vec![]
                         });

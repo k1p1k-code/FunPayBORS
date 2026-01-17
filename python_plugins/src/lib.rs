@@ -21,7 +21,7 @@ pub struct InfoPlugin {
 }
 
 
-fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
+fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
 
     Python::attach(|py| {
         let plugin_dir = info_plugin
@@ -99,6 +99,8 @@ fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
             Err(_) => None,
         };
 
+
+
         let plugin_class = locals
             .get_item("Plugin")
             .expect("No \"Plugin\" class found")
@@ -129,15 +131,51 @@ fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
                 Err(_) => None,
             };
 
-        let load = plugin_instance
-            .getattr("load")
-            .expect("No \"load\" method in Plugin found");
-        match load.call0(){
-            Ok(_) => {}
-            Err(err) => {
+
+
+        let load_hook = match plugin_instance.getattr("load"){
+            Ok(hook) => hook,
+            Err(_) => {
                 return Plugin {
                     name: info_plugin.name,
-                    error: Some(err.to_string()),
+                    error: Some("The plugin does not have the load function".to_string()),
+                    storage: None,
+                    build_menu: None,
+                    message_hook: None,
+                    order_hook: None,
+                    order_status_changed: None,
+                }
+            },
+        };
+
+        let reload_hook= match plugin_instance.getattr("reload"){
+            Ok(hook) => hook,
+            Err(_) => {
+                return Plugin {
+                    name: info_plugin.name,
+                    error: Some("The plugin does not have the reload function".to_string()),
+                    storage: None,
+                    build_menu: None,
+                    message_hook: None,
+                    order_hook: None,
+                    order_status_changed: None,
+                }
+            },
+        };
+
+        let result_hook={
+            if reload {
+                reload_hook.call0()
+            } else {
+                load_hook.call0()
+            }
+        };
+        match result_hook {
+            Ok(_) => {}
+            Err(e) => {
+                return Plugin {
+                    name: info_plugin.name,
+                    error: Some(e.to_string()),
                     storage: None,
                     build_menu: None,
                     message_hook: None,
@@ -146,6 +184,9 @@ fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
                 }
             }
         }
+
+
+
 
         Plugin {
             name: info_plugin.name,
@@ -159,7 +200,7 @@ fn extract_plugin(info_plugin: InfoPlugin) -> Plugin {
     })
 }
 
-pub fn loader_plugins() -> Result<Vec<Plugin>, String> {
+pub fn loader_plugins(reload: bool) -> Result<Vec<Plugin>, String> {
     let current_dir = std::env::current_dir().unwrap();
     let path_plugins = current_dir.join("plugins");
     let path_venv = path_plugins.join("venv");
@@ -192,7 +233,9 @@ pub fn loader_plugins() -> Result<Vec<Plugin>, String> {
             let plugin = extract_plugin(InfoPlugin {
                 path_plugin: entry.path().join("plugin.py"),
                 name: plugin_name,
-            });
+            },
+                reload
+            );
             plugins.push(plugin);
         }
     }
