@@ -79,4 +79,4 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 <img width="1234" height="44" alt="image" src="https://github.com/user-attachments/assets/befbc058-5d4d-492e-845d-360bc036c3c4" />
 
 
-# ❤️ **https://t.me/rust_beginners_ru**
+❤️ https://t.me/rust_beginners_ru
