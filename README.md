@@ -21,7 +21,7 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 - [Помощь](#Помощь)
 - Плагины
 - - [Установка](/USE_PLUGINS.md)
-- - [Создание](https://github.com/k1p1k-code/FunPayBORS/blob/master/CREATE_PLUGINS.md)
+- - [Создание](/CREATE_PLUGINS.md)
 
 ## Возможности
 - Панель управление по адресу из консоли
