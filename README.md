@@ -20,7 +20,7 @@ __Переходи в наш [telegram чат](https://t.me/FunPayBors)  для 
 - [Билд](#Билд)
 - [Помощь](#Помощь)
 - Плагины
-- - [Установка](https://github.com/k1p1k-code/FunPayBORS/blob/master/USE_PLUGINS.md)
+- - [Установка](/USE_PLUGINS.md)
 - - [Создание](https://github.com/k1p1k-code/FunPayBORS/blob/master/CREATE_PLUGINS.md)
 
 ## Возможности
