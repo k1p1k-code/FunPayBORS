@@ -9,14 +9,24 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
-use models::{AppState, EventServer, strategy::Strategies};
+use models::{AppState, EventServer, strategy::Strategies, FPMe};
 use server;
 use crate::utils::print_project;
 
+//noinspection SpellCheckingInspection
 #[tokio::main]
 async fn main() -> Result<(), FunPayError> {
-    let args_option = ArgsOption::new();
     print_project();
+    let args_option = ArgsOption::new();
+    let golden_key = args_option.golden_key.unwrap_or_else(|| {
+        std::env::var("GOLDEN_KEY").unwrap_or_else(|_| {
+            let reader=std::io::stdin();
+            let mut golden_key=String::new();
+            println!("Enter Golden Key:");
+            reader.read_line(&mut golden_key).expect("Error reading Golden Key");
+            golden_key.trim().to_string()
+        })
+    });
     println!("Current directory: {}", std::env::current_dir().expect("Error init").display());
     let plugins_python_sync = Arc::new(Mutex::new(
         python_plugins::loader_plugins(false).unwrap_or_else(|m| {
@@ -24,20 +34,15 @@ async fn main() -> Result<(), FunPayError> {
             vec![]
         })
     ));
-    let golden_key = args_option.golden_key.unwrap_or_else(|| {
-        std::env::var("GOLDEN_KEY").unwrap()
-    });
     let mut account = FunPayAccount::new(golden_key.clone());
     account.init().await?;
-
     let sender = FunPayAccount::create_sender(&account).expect("Error creating sender");
-    let funpay_me = models::FPMe {
+    let funpay_me: FPMe = FPMe {
         id: account
             .id
             .expect("Error get info me, mb no valid golden key"),
         golden_key: golden_key.clone(),
     };
-
     let strategies = Arc::new(Mutex::new(Strategies::new(args_option.path_config).expect("Error")));
     let mut rx_fupay = account.subscribe();
     let app_state = Arc::new(Mutex::new(AppState::new(
