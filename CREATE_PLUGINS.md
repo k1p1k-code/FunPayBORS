@@ -10,7 +10,7 @@
 6. Создайте файл plugin.py это входной файл 
 7. В этом файле создайте класс Plugin
 
-Рекомендую изучить документацию с помощью ИИ: https://deepwiki.com/k1p1k-code/FunPayBORS/
+Рекомендую изучить документацию с помощью ИИ: https://deepwiki.com/k1p1k-code/FunPayBORS/4-plugin-system
 
 ## Хуки
 ### Обязательные (не асинхронные)
