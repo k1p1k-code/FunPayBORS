@@ -2,7 +2,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use serde::Serialize;
 use pyo3::{prelude::*};
-use rand::Rng;
+use rand::RngExt;
 use crate::strategy::Strategies;
 
 pub mod strategy;

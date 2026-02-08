@@ -73,7 +73,7 @@ impl ArgsOption {
         println!("  program [OPTIONS]");
         println!();
         println!("Options:");
-        println!("  -gk, --golden_key  KEY  FunPay golden key");
+        println!("  -gk, --golden_key  KEY  connector golden key");
         println!("  -pc, --path_config PATH Path to configuration file");
         println!(
             "  --server                Launches an application with a TCP listener on port 58899"

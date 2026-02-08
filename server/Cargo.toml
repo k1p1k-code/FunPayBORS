@@ -4,11 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = { version = "0.8.8", features = ["multipart"] }
-tokio = { version = "1", features = ["full", "sync"] }
-models = {path = "../models"}
+axum = { workspace = true, features = ["multipart"] }
+tokio = { workspace = true }
+models = {workspace = true}
+serde = {workspace = true}
+python_plugins={workspace = true}
+
 tower-http = { version = "0.6.8", features = ["cors", "fs"] }
 tower = "0.5.2"
-serde = { version = "1.0.228", features = ["derive"] }
-python_plugins={path = "../python_plugins"}
 async_zip = { version = "0.0.18", features = ["full"] }

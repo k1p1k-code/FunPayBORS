@@ -53,7 +53,7 @@ async fn main() -> Result<(), FunPayError> {
     let plugins_python_funpay= plugins_python_sync.clone();
     let strategies_funpay=strategies.clone();
     let event_handler_funpay = tokio::spawn(async move {
-        println!("FunPay handler run");
+        println!("connector handler run");
         while let Ok(event) = rx_fupay.recv().await {
             let plugins_python_funpay=plugins_python_funpay.clone();
             let strategies=strategies_funpay.lock().await;
@@ -142,7 +142,7 @@ async fn main() -> Result<(), FunPayError> {
     } else {
         tokio::select! {
             _ = event_handler_funpay => {
-                println!("FunPay event handler stopped");
+                println!("connector event handler stopped");
             }
             result = account.start_polling_loop() => {
                 if let Err(e) = result {
