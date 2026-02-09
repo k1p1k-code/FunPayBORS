@@ -20,6 +20,17 @@ pub struct InfoPlugin {
     path_plugin: PathBuf,
 }
 
+fn todo_error(name: String, error: String) -> Plugin {
+    Plugin {
+        name,
+        error: Some(error),
+        storage: None,
+        build_menu: None,
+        message_hook: None,
+        order_hook: None,
+        order_status_changed: None,
+    }
+}
 
 fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
 
@@ -36,7 +47,7 @@ fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
         let plugin_dir_str = plugin_dir.to_str().unwrap();
         path.insert(0, plugin_dir_str).unwrap();
 
-        let mut packeage_venv = PathBuf::from(plugin_dir)
+        let mut package_venv = PathBuf::from(plugin_dir)
             .parent()
             .unwrap()
             .canonicalize()
@@ -44,14 +55,14 @@ fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
             .join("venv");
         #[cfg(unix)]
         {
-            packeage_venv.push("lib");
-            packeage_venv.push("python3.13");
+            package_venv.push("lib");
+            package_venv.push("python3.13");
         }
         #[cfg(windows)]
         {
-            packeage_venv.push("Lib");
+            package_venv.push("Lib");
         }
-        // let python_name = fs::read_dir(&packeage_venv)
+        // let python_name = fs::read_dir(&package_venv)
         //     .expect("No find site-packages in venv")
         //     .filter_map(Result::ok)
         //     .find(|entry| {
@@ -60,9 +71,9 @@ fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
         //     .map(|entry| entry.file_name().to_string_lossy().into_owned())
         //     .expect("Invalid venv");
         //
-        // packeage_venv.push(python_name);
-        packeage_venv.push("site-packages");
-        path.insert(0, packeage_venv.to_str()).unwrap();
+        // package_venv.push(python_name);
+        package_venv.push("site-packages");
+        path.insert(0, package_venv.to_str()).unwrap();
 
         let locals = PyDict::new(py);
         let plugin_code = fs::read_to_string(&info_plugin.path_plugin).expect(&format!(
@@ -75,19 +86,10 @@ fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
             info_plugin.path_plugin
         ));
 
-        match py.run(&c_plugin_code, None, Some(&locals)){
+        match py.run(&c_plugin_code, None, Some(&locals)) {
             Ok(_) => (),
-            Err(err) => {
-                return Plugin {
-                    name: info_plugin.name,
-                    error: Some(err.to_string()),
-                    storage: None,
-                    build_menu: None,
-                    message_hook: None,
-                    order_hook: None,
-                    order_status_changed: None,
-                }
-            }
+            Err(err) => return todo_error(info_plugin.name, err.to_string())
+
         }
 
         let storage: Option<Py<PyAny>> = match locals.get_item("storage") {
@@ -100,15 +102,18 @@ fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
         };
 
 
+        let plugin_class = match locals.get_item("Plugin") {
+            Ok(Some(plugin)) => plugin,
+            Ok(None) | Err(_) => return todo_error(info_plugin.name, "No class Plugin".to_string())
 
-        let plugin_class = locals
-            .get_item("Plugin")
-            .expect("No \"Plugin\" class found")
-            .expect("No \"Plugin\" class found.");
+        };
 
-        let plugin_instance = plugin_class
-            .call0()
-            .expect("Failed to create Plugin instance");
+
+        let plugin_instance = match plugin_class.call0() {
+            Ok(p) => p,
+            Err(_) => return todo_error(info_plugin.name, "Cant instance Plugin class".to_string())
+        };
+
 
         let build_menu: Option<Py<PyAny>> = match plugin_instance.getattr("build_menu") {
             Ok(hook) => Some(hook.into()),
@@ -132,35 +137,14 @@ fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
             };
 
 
-
         let load_hook = match plugin_instance.getattr("load"){
             Ok(hook) => hook,
-            Err(_) => {
-                return Plugin {
-                    name: info_plugin.name,
-                    error: Some("The plugin does not have the load function".to_string()),
-                    storage: None,
-                    build_menu: None,
-                    message_hook: None,
-                    order_hook: None,
-                    order_status_changed: None,
-                }
-            },
+            Err(_) => return todo_error(info_plugin.name, "The plugin does not have the load function".to_string())
         };
 
         let reload_hook= match plugin_instance.getattr("reload"){
             Ok(hook) => hook,
-            Err(_) => {
-                return Plugin {
-                    name: info_plugin.name,
-                    error: Some("The plugin does not have the reload function".to_string()),
-                    storage: None,
-                    build_menu: None,
-                    message_hook: None,
-                    order_hook: None,
-                    order_status_changed: None,
-                }
-            },
+            Err(_) => return todo_error(info_plugin.name, "The plugin does not have the reload function".to_string())
         };
 
         let result_hook={
@@ -172,17 +156,7 @@ fn extract_plugin(info_plugin: InfoPlugin, reload: bool) -> Plugin {
         };
         match result_hook {
             Ok(_) => {}
-            Err(e) => {
-                return Plugin {
-                    name: info_plugin.name,
-                    error: Some(e.to_string()),
-                    storage: None,
-                    build_menu: None,
-                    message_hook: None,
-                    order_hook: None,
-                    order_status_changed: None,
-                }
-            }
+            Err(err) =>  return todo_error(info_plugin.name, err.to_string())
         }
 
 

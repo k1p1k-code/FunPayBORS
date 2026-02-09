@@ -3,7 +3,7 @@ name="connector"
 edition = "2024"
 
 [[bin]]
-name = "connector"
+name = "FunPayBORS"
 path = "./src/main.rs"
 
 [dependencies]
